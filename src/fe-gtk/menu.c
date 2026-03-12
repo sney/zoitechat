@@ -1573,6 +1573,12 @@ menu_away (GtkCheckMenuItem *item, gpointer none)
 }
 
 static void
+menu_away_toggle (GtkWidget *item, gpointer none)
+{
+	handle_command (current_sess, current_sess->server->is_away ? "back" : "away", FALSE);
+}
+
+static void
 menu_chanlist (GtkWidget * wid, gpointer none)
 {
 	chanlist_opengui (current_sess->server, FALSE);
@@ -1888,30 +1894,12 @@ menu_about (GtkWidget *wid, gpointer sess)
 	gtk_widget_show_all (GTK_WIDGET(dialog));
 }
 
-#define ICON_NEW "zc-menu-new"
-#define ICON_NETWORK_LIST "zc-menu-network-list"
-#define ICON_LOAD_PLUGIN "zc-menu-load-plugin"
-#define ICON_DETACH "zc-menu-detach"
-#define ICON_CLOSE "zc-menu-close"
-#define ICON_QUIT "zc-menu-quit"
-#define ICON_DISCONNECT "zc-menu-disconnect"
-#define ICON_CONNECT "zc-menu-connect"
-#define ICON_JOIN "zc-menu-join"
-#define ICON_CHANLIST "zc-menu-chanlist"
-#define ICON_PREFERENCES "zc-menu-preferences"
-#define ICON_CLEAR "zc-menu-clear"
-#define ICON_SAVE "zc-menu-save"
-#define ICON_SEARCH "zc-menu-search"
-#define ICON_FIND "zc-menu-find"
-#define ICON_HELP "zc-menu-help"
-#define ICON_ABOUT "zc-menu-about"
-
 static struct mymenu mymenu[] = {
 	{N_("_ZoiteChat"), 0, 0, M_NEWMENU, MENU_ID_ZOITECHAT, 0, 1},
-	{N_("Network Li_st"), menu_open_server_list, ICON_NETWORK_LIST, M_MENUSTOCK, 0, 0, 1, GDK_KEY_s},
+	{N_("Network Li_st"), menu_open_server_list, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_s},
 	{0, 0, 0, M_SEP, 0, 0, 0},
 
-	{N_("_New"), 0, ICON_NEW, M_MENUSUB, 0, 0, 1},
+	{N_("_New"), 0, 0, M_MENUSUB, 0, 0, 1},
 		{N_("Server Tab"), menu_newserver_tab, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_t},
 		{N_("Channel Tab"), menu_newchannel_tab, 0, M_MENUITEM, 0, 0, 1},
 		{N_("Server Window"), menu_newserver_window, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_n},
@@ -1919,14 +1907,14 @@ static struct mymenu mymenu[] = {
 		{0, 0, 0, M_END, 0, 0, 0},
 	{0, 0, 0, M_SEP, 0, 0, 0},
 
-	{N_("_Load Plugin or Script" ELLIPSIS), menu_loadplugin, ICON_LOAD_PLUGIN, M_MENUSTOCK, 0, 0, 1},
+	{N_("_Load Plugin or Script" ELLIPSIS), menu_loadplugin, 0, M_MENUITEM, 0, 0, 1},
 	{0, 0, 0, M_SEP, 0, 0, 0},	/* 11 */
 #define DETACH_OFFSET (12)
-	{0, menu_detach, ICON_DETACH, M_MENUSTOCK, 0, 0, 1},	/* 12 */
+	{0, menu_detach, 0, M_MENUITEM, 0, 0, 1},	/* 12 */
 #define CLOSE_OFFSET (13)
-	{0, menu_close, ICON_CLOSE, M_MENUSTOCK, 0, 0, 1},
+	{0, menu_close, 0, M_MENUITEM, 0, 0, 1},
 	{0, 0, 0, M_SEP, 0, 0, 0},
-	{N_("_Quit"), menu_quit, ICON_QUIT, M_MENUSTOCK, 0, 0, 1, GDK_KEY_q},	/* 15 */
+	{N_("_Quit"), menu_quit, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_q},	/* 15 */
 
 	{N_("_View"), 0, 0, M_NEWMENU, 0, 0, 1},
 #define MENUBAR_OFFSET (17)
@@ -1952,18 +1940,18 @@ static struct mymenu mymenu[] = {
 	{N_ ("_Fullscreen"), menu_fullscreen_toggle, 0, M_MENUTOG, MENU_ID_FULLSCREEN, 0, 1, GDK_KEY_F11},
 
 	{N_("_Server"), 0, 0, M_NEWMENU, 0, 0, 1},
-	{N_("_Disconnect"), menu_disconnect, ICON_DISCONNECT, M_MENUSTOCK, MENU_ID_DISCONNECT, 0, 1},
-	{N_("_Reconnect"), menu_reconnect, ICON_CONNECT, M_MENUSTOCK, MENU_ID_RECONNECT, 0, 1},
-	{N_("_Join a Channel" ELLIPSIS), menu_join, ICON_JOIN, M_MENUSTOCK, MENU_ID_JOIN, 0, 1},
-	{N_("Channel _List"), menu_chanlist, ICON_CHANLIST, M_MENUSTOCK, 0, 0, 1},
+	{N_("_Disconnect"), menu_disconnect, 0, M_MENUITEM, MENU_ID_DISCONNECT, 0, 1},
+	{N_("_Reconnect"), menu_reconnect, 0, M_MENUITEM, MENU_ID_RECONNECT, 0, 1},
+	{N_("_Join a Channel" ELLIPSIS), menu_join, 0, M_MENUITEM, MENU_ID_JOIN, 0, 1},
+	{N_("Channel _List"), menu_chanlist, 0, M_MENUITEM, 0, 0, 1},
 	{0, 0, 0, M_SEP, 0, 0, 0},
 #define AWAY_OFFSET (41)
-	{N_("Marked _Away"), menu_away, 0, M_MENUTOG, MENU_ID_AWAY, 0, 1, GDK_KEY_a},
+	{N_("Marked _Away"), menu_away_toggle, 0, M_MENUITEM, MENU_ID_AWAY, 0, 1, GDK_KEY_a},
 
 	{N_("_Usermenu"), 0, 0, M_NEWMENU, MENU_ID_USERMENU, 0, 1},	/* 40 */
 
 	{N_("S_ettings"), 0, 0, M_NEWMENU, 0, 0, 1},
-	{N_("_Preferences"), menu_settings, ICON_PREFERENCES, M_MENUSTOCK, 0, 0, 1},
+	{N_("_Preferences"), menu_settings, 0, M_MENUITEM, 0, 0, 1},
 	{0, 0, 0, M_SEP, 0, 0, 0},
 	{N_("Auto Replace"), menu_rpopup, 0, M_MENUITEM, 0, 0, 1},
 	{N_("CTCP Replies"), menu_ctcpguiopen, 0, M_MENUITEM, 0, 0, 1},
@@ -1989,18 +1977,18 @@ static struct mymenu mymenu[] = {
 	{N_("Reset Marker Line"), menu_resetmarker, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_m},
 	{N_("Move to Marker Line"), menu_movetomarker, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_M},
 	{N_("_Copy Selection"), menu_copy_selection, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_C},
-	{N_("C_lear Text"), menu_flushbuffer, ICON_CLEAR, M_MENUSTOCK, 0, 0, 1},
-	{N_("Save Text" ELLIPSIS), menu_savebuffer, ICON_SAVE, M_MENUSTOCK, 0, 0, 1},
+	{N_("C_lear Text"), menu_flushbuffer, 0, M_MENUITEM, 0, 0, 1},
+	{N_("Save Text" ELLIPSIS), menu_savebuffer, 0, M_MENUITEM, 0, 0, 1},
 #define SEARCH_OFFSET (70)
-	{N_("Search"), 0, ICON_SEARCH, M_MENUSUB, 0, 0, 1},
-		{N_("Search Text" ELLIPSIS), menu_search, ICON_FIND, M_MENUSTOCK, 0, 0, 1, GDK_KEY_f},
-		{N_("Search Next"   ), menu_search_next, ICON_FIND, M_MENUSTOCK, 0, 0, 1, GDK_KEY_g},
-		{N_("Search Previous"   ), menu_search_prev, ICON_FIND, M_MENUSTOCK, 0, 0, 1, GDK_KEY_G},
+	{N_("Search"), 0, 0, M_MENUSUB, 0, 0, 1},
+		{N_("Search Text" ELLIPSIS), menu_search, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_f},
+		{N_("Search Next"   ), menu_search_next, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_g},
+		{N_("Search Previous"   ), menu_search_prev, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_G},
 		{0, 0, 0, M_END, 0, 0, 0},
 
 	{N_("_Help"), 0, 0, M_NEWMENU, 0, 0, 1},	/* 74 */
-	{N_("_Contents"), menu_docs, ICON_HELP, M_MENUSTOCK, 0, 0, 1, GDK_KEY_F1},
-	{N_("_About"), menu_about, ICON_ABOUT, M_MENUSTOCK, 0, 0, 1},
+	{N_("_Contents"), menu_docs, 0, M_MENUITEM, 0, 0, 1, GDK_KEY_F1},
+	{N_("_About"), menu_about, 0, M_MENUITEM, 0, 0, 1},
 
 	{0, 0, 0, M_END, 0, 0, 0},
 };
@@ -2008,11 +1996,14 @@ static struct mymenu mymenu[] = {
 void
 menu_set_away (session_gui *gui, int away)
 {
-	GtkCheckMenuItem *item = GTK_CHECK_MENU_ITEM (gui->menu_item[MENU_ID_AWAY]);
+	if (GTK_IS_CHECK_MENU_ITEM (gui->menu_item[MENU_ID_AWAY]))
+	{
+		GtkCheckMenuItem *item = GTK_CHECK_MENU_ITEM (gui->menu_item[MENU_ID_AWAY]);
 
-	g_signal_handlers_block_by_func (G_OBJECT (item), menu_away, NULL);
-	gtk_check_menu_item_set_active (item, away);
-	g_signal_handlers_unblock_by_func (G_OBJECT (item), menu_away, NULL);
+		g_signal_handlers_block_by_func (G_OBJECT (item), menu_away, NULL);
+		gtk_check_menu_item_set_active (item, away);
+		g_signal_handlers_unblock_by_func (G_OBJECT (item), menu_away, NULL);
+	}
 }
 
 void
