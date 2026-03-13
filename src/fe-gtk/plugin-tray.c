@@ -1152,6 +1152,19 @@ tray_update_toggle_item_label (void)
 	gtk_menu_item_set_use_underline (GTK_MENU_ITEM (tray_toggle_item), TRUE);
 }
 
+#if !defined(WIN32)
+static void G_GNUC_UNUSED
+tray_menu_show_cb (GtkWidget *menu, gpointer userdata)
+{
+	(void)userdata;
+
+	tray_menu_clear (menu);
+	tray_menu_populate (menu);
+}
+#endif
+
+#endif
+
 static gboolean
 tray_window_state_cb (GtkWidget *widget, GdkEventWindowState *event, gpointer userdata)
 {
@@ -1172,16 +1185,6 @@ tray_window_visibility_cb (GtkWidget *widget, gpointer userdata)
 
 	tray_update_toggle_item_label ();
 }
-
-static void G_GNUC_UNUSED
-tray_menu_show_cb (GtkWidget *menu, gpointer userdata)
-{
-	(void)userdata;
-
-	tray_menu_clear (menu);
-	tray_menu_populate (menu);
-}
-#endif
 
 #if !HAVE_APPINDICATOR_BACKEND
 static void
