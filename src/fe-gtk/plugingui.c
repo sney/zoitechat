@@ -198,8 +198,6 @@ plugingui_load_cb (session *sess, char *file)
 		char *addons_dir;
 		char *basename;
 		char *addons_target;
-		char *canonical_addons;
-		char *canonical_file;
 		gboolean file_in_addons;
 
 		target_sess = is_session (sess) ? sess : current_sess;
@@ -211,11 +209,9 @@ plugingui_load_cb (session *sess, char *file)
 
 		load_target = g_strdup (file);
 		addons_dir = g_build_filename (get_xdir (), "addons", NULL);
-		canonical_addons = g_canonicalize_filename (addons_dir, NULL);
-		canonical_file = g_canonicalize_filename (file, NULL);
-		file_in_addons = g_str_has_prefix (canonical_file, canonical_addons)
-			&& (canonical_file[strlen (canonical_addons)] == G_DIR_SEPARATOR
-				|| canonical_file[strlen (canonical_addons)] == '\0');
+		file_in_addons = g_str_has_prefix (file, addons_dir)
+			&& (file[strlen (addons_dir)] == G_DIR_SEPARATOR
+				|| file[strlen (addons_dir)] == '\0');
 
 		if (!file_in_addons)
 		{
@@ -240,8 +236,6 @@ plugingui_load_cb (session *sess, char *file)
 			}
 		}
 
-		g_free (canonical_addons);
-		g_free (canonical_file);
 		g_free (addons_dir);
 
 #ifdef WIN32

@@ -1144,6 +1144,12 @@ fe_gui_info (session *sess, int info_type)
 			return 2;	/* hidden (iconified or systray) */
 		}
 
+		{
+			GdkWindow *gdk_win = gtk_widget_get_window (GTK_WIDGET (sess->gui->window));
+			if (gdk_win && (gdk_window_get_state (gdk_win) & GDK_WINDOW_STATE_ICONIFIED))
+				return 2;
+		}
+
 		if (gtk_window_is_active (GTK_WINDOW (sess->gui->window)))
 		{
 			return 1;	/* active/focused */

@@ -424,6 +424,8 @@ tray_app_indicator_init (void)
 	tray_menu = gtk_menu_new ();
 	g_signal_connect (G_OBJECT (tray_menu), "show",
 		G_CALLBACK (tray_menu_show_cb), NULL);
+	g_signal_connect (G_OBJECT (tray_menu), "map",
+		G_CALLBACK (tray_menu_show_cb), NULL);
 	app_indicator_set_menu (tray_indicator, GTK_MENU (tray_menu));
 	app_indicator_set_status (tray_indicator, APP_INDICATOR_STATUS_ACTIVE);
 
@@ -581,11 +583,21 @@ static WinStatus
 tray_get_window_status (void)
 {
 	GtkWindow *win;
+	GtkWidget *widget;
+	GdkWindow *gdk_win;
 	const char *st;
 
 	win = GTK_WINDOW (zoitechat_get_info (ph, "gtkwin_ptr"));
-	if (win && !gtk_widget_get_visible (GTK_WIDGET (win)))
-		return WS_HIDDEN;
+	if (win)
+	{
+		widget = GTK_WIDGET (win);
+		if (!gtk_widget_get_visible (widget))
+			return WS_HIDDEN;
+
+		gdk_win = gtk_widget_get_window (widget);
+		if (gdk_win && (gdk_window_get_state (gdk_win) & GDK_WINDOW_STATE_ICONIFIED))
+			return WS_HIDDEN;
+	}
 
 	st = zoitechat_get_info (ph, "win_status");
 
