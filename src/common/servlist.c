@@ -59,11 +59,8 @@ static const struct defaultserver def[] =
 	{0,			"irc.afternet.org"},
 
 	{"Aitvaras",	0},
-#ifdef USE_OPENSSL
 	{0,			"irc.data.lt/+6668"},
-	{0,			"irc.omicron.lt/+6668"},
 	{0,			"irc.vub.lt/+6668"},
-#endif
 	{0,			"irc.data.lt"},
 	{0,			"irc.omicron.lt"},
 	{0,			"irc.vub.lt"},
@@ -96,9 +93,6 @@ static const struct defaultserver def[] =
 	{"ChatSpike", 0, 0, 0, LOGIN_SASL},
 	{0,			"irc.chatspike.net"},
 
-	{"DaIRC", 0},
-	{0,			"irc.dairc.net"},
-	
 	{"DALnet", 0, 0, 0, LOGIN_NICKSERV},
 	/* Self signed */
 	{0,			"us.dal.net"},
@@ -106,32 +100,18 @@ static const struct defaultserver def[] =
 	{"DarkMyst", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.darkmyst.org"},
 
-#ifdef USE_OPENSSL
 	{"darkscience", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.darkscience.net"},
 	{0,			"irc.drk.sc"},
-	{0,			"irc.darkscience.ws"},
-#endif
 
-	{"Dark-Tou-Net",	0},
-	{0,			"irc.d-t-net.de"},
-	
 	{"DigitalIRC", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.digitalirc.org"},
-	
-#ifdef USE_OPENSSL
+
 	{"DosersNET", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.dosers.net/+6697"},
-#endif
 
-	{"EFnet",	0},
-	{0,			"irc.choopa.net"},
-	{0,			"efnet.port80.se"},
-	{0,			"irc.underworld.no"},
-	{0,			"efnet.deic.eu"},
-
-	{"EnterTheGame",	0},
-	{0,			"irc.enterthegame.com"},
+	{"EFnet", 0, 0, 0, LOGIN_SASL, 0, TRUE},
+	{0,			"irc.efnet.org"},
 
 	{"EntropyNet",	0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.entropynet.net"},
@@ -146,10 +126,6 @@ static const struct defaultserver def[] =
 	/* Self signed */
 	{0,			"irc.europnet.org"},
 
-	{"FDFNet",	0},
-	/* Self signed */
-	{0,			"irc.fdfnet.net"},
-
 	{"GameSurge", 0},
 	{0,			"irc.gamesurge.net"},
 
@@ -162,40 +138,25 @@ static const struct defaultserver def[] =
 	{"GIMPNet",		0},
 	/* Invalid hostname in cert */
 	{0,			"irc.gimp.org"},
-	{0,			"irc.gnome.org"},
 
-	{"GlobalGamers", 0},
-#ifdef USE_OPENSSL
-	{0,			"irc.globalgamers.net/+6660"},
-#endif
-	{0,			"irc.globalgamers.net"},
-
-#ifdef USE_OPENSSL
 	{"hackint", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.hackint.org"},
 	{0,			"irc.eu.hackint.org"},
-#endif
 
 	{"Hashmark",	0},
 	{0,			"irc.hashmark.net"},
-
-	{"ICQ-Chat", 0, 0, 0, LOGIN_SASL, 0, TRUE},
-	{0,			"irc.icq-chat.com"},
 
 	{"Interlinked", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.interlinked.me"},
 
 	{"Irc-Nerds", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.irc-nerds.net"},
-	
+
 	{"IRC4Fun", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,				"irc.irc4fun.net"},
 
 	{"IRCNet",		0},
 	{0,				"open.ircnet.net"},
-
-	{"IRCtoo",	0},
-	{0,			"irc.irctoo.net"},
 
 	{"Keyboard-Failure", 0},
 	/* SSL is self-signed */
@@ -203,44 +164,33 @@ static const struct defaultserver def[] =
 
 	{"Libera.Chat", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.libera.chat"},
-	
-#ifdef USE_OPENSSL
+
 	{"LibertaCasa", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.liberta.casa"},
-#endif
 
 	{"LibraIRC", 0},
 	/* Self signed */
 	{0,			"irc.librairc.net"},
 
-#ifdef USE_OPENSSL
 	{"LinkNet",	0},
 	{0,			"irc.link-net.org/+7000"},
-#endif
 
 	{"MindForge", 0, 0, 0, LOGIN_SASL},
 	{0,			"irc.mindforge.org"},
 
 	{"MIXXnet",		0},
 	{0,			"irc.mixxnet.net"},
-	
+
 	{"Newnet", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.newnet.net"},
-    {0,			"australia-au.newnet.net"},
-    {0,			"beauharnois-ca.newnet.net"},
-    {0,			"vancouver-ca.newnet.net"},
-    {0,			"gravelines-fr.newnet.net"},
-    {0,			"sao-paulo.newnet.net"},
-
-	{"Oceanius", 0, 0, 0, LOGIN_SASL},
-	/* Self signed */
-	{0,			"irc.oceanius.com"},
+	{0,			"australia-au.newnet.net"},
+	{0,			"beauharnois-ca.newnet.net"},
+	{0,			"vancouver-ca.newnet.net"},
+	{0,			"gravelines-fr.newnet.net"},
+	{0,			"sao-paulo.newnet.net"},
 
 	{"OFTC", 0, 0, 0, 0, 0, TRUE},
 	{0,			"irc.oftc.net"},
-
-	{"OtherNet",	0},
-	{0,			"irc.othernet.org"},
 
 	{"OzOrg",	0},
 	{0,			"irc.oz.org"},
@@ -268,8 +218,6 @@ static const struct defaultserver def[] =
 	{"RusNet", 0, 0, "KOI8-R (Cyrillic)"},
 	/* Self signed */
 	{0,			"irc.tomsk.net"},
-	{0,			"irc.run.net"},
-	{0,			"irc.ru"},
 	{0,			"irc.lucky.net"},
 
 	{"Serenity-IRC",	0},
@@ -291,16 +239,13 @@ static const struct defaultserver def[] =
 	{"SorceryNet", 0, 0, 0, LOGIN_SASL},
 	/* Self signed */
 	{0,			"irc.sorcery.net"},
-	
+
 	{"SpotChat", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.spotchat.org"},
 
 	{"Station51", 0},
 	/* Self signed */
 	{0,			"irc.station51.net"},
-
-	{"StormBit", 0, 0, 0, LOGIN_SASL, 0, TRUE},
-	{0,			"irc.stormbit.net"},
 
 	{"SwiftIRC", 0},
 	/* Expired cert */
@@ -312,23 +257,16 @@ static const struct defaultserver def[] =
 
 	{"Techtronix",	0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.techtronix.net"},
-	
+
 	{"tilde.chat", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.tilde.chat"},
 
 	{"TURLINet", 0, 0, 0, 0, 0, TRUE},
 	/* all servers use UTF-8 and valid certs */
 	{0,			"irc.servx.org"},
-	{0,			"i.valware.uk"},
-	
-	
-#ifdef USE_OPENSSL
+
 	{"TripSit", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.tripsit.me"},
-	{0,			"newirc.tripsit.me"},
-	{0,			"coconut.tripsit.me"},
-	{0,			"innsbruck.tripsit.me"},
-#endif	
 
 	{"UnderNet", 0, 0, 0, LOGIN_CUSTOM, "MSG x@channels.undernet.org login %u %p"},
 	{0,			"us.undernet.org"},
@@ -338,8 +276,8 @@ static const struct defaultserver def[] =
 
 	{"Zoite", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.zoite.net"},
-    {0,			"penumbra.zoite.net"},
-    {0,			"hedy.zoite.net"},
+	{0,			"penumbra.zoite.net"},
+	{0,			"hedy.zoite.net"},
 
 	{0,0}
 };
