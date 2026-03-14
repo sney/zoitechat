@@ -2415,6 +2415,20 @@ mg_apply_entry_style (GtkWidget *entry)
 	theme_manager_apply_entry_palette (entry, input_style->font_desc);
 }
 
+static gboolean
+mg_entry_select_all (GtkWidget *entry, GdkEventKey *event, gpointer userdata)
+{
+	if ((event->state & GDK_CONTROL_MASK) &&
+		!(event->state & (GDK_SHIFT_MASK | GDK_MOD1_MASK | GDK_META_MASK)) &&
+		(event->keyval == GDK_KEY_a || event->keyval == GDK_KEY_A))
+	{
+		gtk_editable_select_region (GTK_EDITABLE (entry), 0, -1);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 static void
 mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
 {
@@ -2434,6 +2448,8 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         mg_apply_emoji_fallback_widget (gui->key_entry);
         g_signal_connect (G_OBJECT (gui->key_entry), "activate",
                                                         G_CALLBACK (mg_key_entry_cb), NULL);
+        g_signal_connect (G_OBJECT (gui->key_entry), "key_press_event",
+                                                        G_CALLBACK (mg_entry_select_all), NULL);
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (gui->key_entry);
@@ -2447,6 +2463,8 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         mg_apply_emoji_fallback_widget (gui->limit_entry);
         g_signal_connect (G_OBJECT (gui->limit_entry), "activate",
                                                         G_CALLBACK (mg_limit_entry_cb), NULL);
+        g_signal_connect (G_OBJECT (gui->limit_entry), "key_press_event",
+                                                        G_CALLBACK (mg_entry_select_all), NULL);
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (gui->limit_entry);
@@ -2537,6 +2555,8 @@ mg_create_topicbar (session *sess, GtkWidget *box)
         mg_apply_emoji_fallback_widget (topic);
         g_signal_connect (G_OBJECT (topic), "activate",
                                                         G_CALLBACK (mg_topic_cb), 0);
+        g_signal_connect (G_OBJECT (topic), "key_press_event",
+                                                        G_CALLBACK (mg_entry_select_all), NULL);
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (topic);
