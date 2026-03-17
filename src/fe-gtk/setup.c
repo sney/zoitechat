@@ -2193,14 +2193,22 @@ static void
 setup_ok_cb (GtkWidget *but, GtkWidget *win)
 {
         PreferencesPersistenceResult save_result;
+        struct zoitechatprefs old_prefs;
         char buffer[192];
 
-        theme_preferences_stage_commit ();
+        memcpy (&old_prefs, &prefs, sizeof (prefs));
+        theme_preferences_stage_apply ();
         setup_apply (&setup_prefs);
         save_result = preferences_persistence_save_all ();
-        gtk_widget_destroy (win);
         if (save_result.success)
+        {
+                theme_preferences_stage_commit ();
+                gtk_widget_destroy (win);
                 return;
+        }
+
+        memcpy (&prefs, &old_prefs, sizeof (prefs));
+        theme_preferences_stage_discard ();
 
         if (save_result.partial_failure)
         {

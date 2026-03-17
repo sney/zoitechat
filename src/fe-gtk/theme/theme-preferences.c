@@ -188,12 +188,21 @@ theme_preferences_stage_begin (void)
 }
 
 void
-theme_preferences_stage_commit (void)
+theme_preferences_stage_apply (void)
 {
         if (!theme_preferences_stage.active)
                 return;
 
         theme_preferences_stage_sync_runtime_to_staged ();
+}
+
+void
+theme_preferences_stage_commit (void)
+{
+        if (!theme_preferences_stage.active)
+                return;
+
+        theme_preferences_stage_apply ();
         memset (&theme_preferences_stage, 0, sizeof (theme_preferences_stage));
 }
 
