@@ -173,6 +173,55 @@ enum
 
 static void mg_apply_emoji_fallback_widget (GtkWidget *widget);
 
+#define MG_CONFIG_SAVE_DEBOUNCE_MS 250
+
+static guint mg_config_save_source_id = 0;
+static gboolean mg_config_prefs_dirty = FALSE;
+
+static gboolean
+mg_config_save_timeout_cb (gpointer userdata)
+{
+        mg_config_save_source_id = 0;
+
+        if (!mg_config_prefs_dirty)
+                return G_SOURCE_REMOVE;
+
+        save_config ();
+        mg_config_prefs_dirty = FALSE;
+
+        return G_SOURCE_REMOVE;
+}
+
+static void
+mg_schedule_config_save (void)
+{
+        if (!mg_config_prefs_dirty)
+                return;
+
+        if (mg_config_save_source_id != 0)
+                g_source_remove (mg_config_save_source_id);
+
+        mg_config_save_source_id = g_timeout_add (MG_CONFIG_SAVE_DEBOUNCE_MS,
+                                                                                           mg_config_save_timeout_cb,
+                                                                                           NULL);
+}
+
+static void
+mg_flush_config_save (void)
+{
+        if (mg_config_save_source_id != 0)
+        {
+                g_source_remove (mg_config_save_source_id);
+                mg_config_save_source_id = 0;
+        }
+
+        if (mg_config_prefs_dirty)
+        {
+                save_config ();
+                mg_config_prefs_dirty = FALSE;
+        }
+}
+
 static inline void
 mg_set_source_color (cairo_t *cr, const XTextColor *color)
 {
@@ -761,6 +810,10 @@ fe_set_title (session *sess)
 static gboolean
 mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata)
 {
+	guint win_state;
+	guint win_fullscreen;
+	gboolean changed = FALSE;
+
 	if ((event->changed_mask & GDK_WINDOW_STATE_ICONIFIED) &&
 		 (event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) &&
 		 prefs.hex_gui_tray_minimize && prefs.hex_gui_tray &&
@@ -769,13 +822,31 @@ mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata
 		tray_toggle_visibility (TRUE);
 	}
 
-        prefs.hex_gui_win_state = 0;
-        if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED)
-                prefs.hex_gui_win_state = 1;
+	win_state = 0;
+	if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED)
+		win_state = 1;
 
-        prefs.hex_gui_win_fullscreen = 0;
-        if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
-                prefs.hex_gui_win_fullscreen = 1;
+	win_fullscreen = 0;
+	if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
+		win_fullscreen = 1;
+
+	if (prefs.hex_gui_win_state != win_state)
+	{
+		prefs.hex_gui_win_state = win_state;
+		changed = TRUE;
+	}
+
+	if (prefs.hex_gui_win_fullscreen != win_fullscreen)
+	{
+		prefs.hex_gui_win_fullscreen = win_fullscreen;
+		changed = TRUE;
+	}
+
+	if (changed)
+	{
+		mg_config_prefs_dirty = TRUE;
+		mg_schedule_config_save ();
+	}
 
         menu_set_fullscreen (current_sess->gui, prefs.hex_gui_win_fullscreen);
 
@@ -789,17 +860,46 @@ mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata
 static gboolean
 mg_configure_cb (GtkWidget *wid, GdkEventConfigure *event, session *sess)
 {
+        gboolean changed = FALSE;
+
         if (sess == NULL)                       /* for the main_window */
         {
                 if (mg_gui)
                 {
                         if (prefs.hex_gui_win_save && !prefs.hex_gui_win_state && !prefs.hex_gui_win_fullscreen)
                         {
+                                int win_left;
+                                int win_top;
+                                int win_width;
+                                int win_height;
+
                                 sess = current_sess;
-                                gtk_window_get_position (GTK_WINDOW (wid), &prefs.hex_gui_win_left,
-                                                                                                 &prefs.hex_gui_win_top);
-                                gtk_window_get_size (GTK_WINDOW (wid), &prefs.hex_gui_win_width,
-                                                                                        &prefs.hex_gui_win_height);
+                                gtk_window_get_position (GTK_WINDOW (wid), &win_left, &win_top);
+                                gtk_window_get_size (GTK_WINDOW (wid), &win_width, &win_height);
+
+                                if (prefs.hex_gui_win_left != win_left)
+                                {
+                                        prefs.hex_gui_win_left = win_left;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_top != win_top)
+                                {
+                                        prefs.hex_gui_win_top = win_top;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_width != win_width)
+                                {
+                                        prefs.hex_gui_win_width = win_width;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_height != win_height)
+                                {
+                                        prefs.hex_gui_win_height = win_height;
+                                        changed = TRUE;
+                                }
                         }
                 }
         }
@@ -808,11 +908,44 @@ mg_configure_cb (GtkWidget *wid, GdkEventConfigure *event, session *sess)
         {
                 if (sess->type == SESS_DIALOG && prefs.hex_gui_win_save)
                 {
-                        gtk_window_get_position (GTK_WINDOW (wid), &prefs.hex_gui_dialog_left,
-                                                                                         &prefs.hex_gui_dialog_top);
-                        gtk_window_get_size (GTK_WINDOW (wid), &prefs.hex_gui_dialog_width,
-                                                                                &prefs.hex_gui_dialog_height);
+                        int dialog_left;
+                        int dialog_top;
+                        int dialog_width;
+                        int dialog_height;
+
+                        gtk_window_get_position (GTK_WINDOW (wid), &dialog_left, &dialog_top);
+                        gtk_window_get_size (GTK_WINDOW (wid), &dialog_width, &dialog_height);
+
+                        if (prefs.hex_gui_dialog_left != dialog_left)
+                        {
+                                prefs.hex_gui_dialog_left = dialog_left;
+                                changed = TRUE;
+                        }
+
+                        if (prefs.hex_gui_dialog_top != dialog_top)
+                        {
+                                prefs.hex_gui_dialog_top = dialog_top;
+                                changed = TRUE;
+                        }
+
+                        if (prefs.hex_gui_dialog_width != dialog_width)
+                        {
+                                prefs.hex_gui_dialog_width = dialog_width;
+                                changed = TRUE;
+                        }
+
+                        if (prefs.hex_gui_dialog_height != dialog_height)
+                        {
+                                prefs.hex_gui_dialog_height = dialog_height;
+                                changed = TRUE;
+                        }
                 }
+        }
+
+        if (changed)
+        {
+                mg_config_prefs_dirty = TRUE;
+                mg_schedule_config_save ();
         }
 
         return FALSE;
@@ -2338,6 +2471,8 @@ mg_tabwindow_kill_cb (GtkWidget *win, gpointer userdata)
 {
         GSList *list, *next;
         session *sess;
+
+        mg_flush_config_save ();
 
         zoitechat_is_quitting = TRUE;
 
