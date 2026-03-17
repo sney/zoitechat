@@ -1357,6 +1357,24 @@ fe_open_url_is_local_path (const char *url)
 	return FALSE;
 }
 
+static char *
+fe_open_url_canonicalize_path (const char *path)
+{
+	char *absolute_path;
+	char *cwd;
+
+	if (!path || path[0] == '\0')
+		return NULL;
+
+	if (g_path_is_absolute (path))
+		return g_strdup (path);
+
+	cwd = g_get_current_dir ();
+	absolute_path = g_build_filename (cwd, path, NULL);
+	g_free (cwd);
+	return absolute_path;
+}
+
 void
 fe_open_url (const char *url)
 {
@@ -1367,7 +1385,7 @@ fe_open_url (const char *url)
 
 	if (fe_open_url_is_local_path (url))
 	{
-		path = g_canonicalize_filename (url, NULL);
+		path = fe_open_url_canonicalize_path (url);
 		path_uri = g_filename_to_uri (path, NULL, NULL);
 		g_free (path);
 
@@ -1382,7 +1400,7 @@ fe_open_url (const char *url)
 	/* gvfs likes file:// */
 	if (url_type == WORD_PATH)
 	{
-		path = g_canonicalize_filename (url, NULL);
+		path = fe_open_url_canonicalize_path (url);
 		path_uri = g_filename_to_uri (path, NULL, NULL);
 		g_free (path);
 		if (path_uri)
