@@ -59,6 +59,7 @@
 #include "plugin-notification.h"
 #include "theme/theme-manager.h"
 #include "theme/theme-application.h"
+#include "preferences-persistence.h"
 
 #ifdef USE_LIBCANBERRA
 #include <canberra.h>
@@ -583,6 +584,21 @@ fe_main (void)
 void
 fe_cleanup (void)
 {
+}
+
+fe_preferences_save_result
+fe_preferences_persistence_save_all (void)
+{
+	PreferencesPersistenceResult save_result;
+	fe_preferences_save_result result;
+
+	save_result = preferences_persistence_save_all ();
+	result.success = save_result.success;
+	result.partial_failure = save_result.partial_failure;
+	result.config_failed = save_result.config_failed;
+	result.theme_failed = save_result.theme_failed;
+
+	return result;
 }
 
 void

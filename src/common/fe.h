@@ -44,11 +44,20 @@ typedef struct
 	char *icon;	/* filename */
 } menu_entry;
 
+typedef struct
+{
+	gboolean success;
+	gboolean partial_failure;
+	gboolean config_failed;
+	gboolean theme_failed;
+} fe_preferences_save_result;
+
 int fe_args (int argc, char *argv[]);
 void fe_init (void);
 void fe_main (void);
 void fe_cleanup (void);
 void fe_exit (void);
+fe_preferences_save_result fe_preferences_persistence_save_all (void);
 int fe_timeout_add (int interval, void *callback, void *userdata);
 int fe_timeout_add_seconds (int interval, void *callback, void *userdata);
 void fe_timeout_remove (int tag);
