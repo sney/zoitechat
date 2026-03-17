@@ -2195,9 +2195,10 @@ setup_ok_cb (GtkWidget *but, GtkWidget *win)
         PreferencesPersistenceResult save_result;
         char buffer[192];
 
-        gtk_widget_destroy (win);
+        theme_preferences_stage_commit ();
         setup_apply (&setup_prefs);
         save_result = preferences_persistence_save_all ();
+        gtk_widget_destroy (win);
         if (save_result.success)
                 return;
 
@@ -2256,6 +2257,7 @@ setup_close_cb (GtkWidget *win, GtkWidget **swin)
 {
         *swin = NULL;
 
+        theme_preferences_stage_discard ();
 
         if (font_dialog)
         {
@@ -2276,6 +2278,7 @@ setup_open (void)
         memcpy (&setup_prefs, &prefs, sizeof (prefs));
 
         color_change = FALSE;
+        theme_preferences_stage_begin ();
         setup_window = setup_window_open ();
 
         g_signal_connect (G_OBJECT (setup_window), "destroy",

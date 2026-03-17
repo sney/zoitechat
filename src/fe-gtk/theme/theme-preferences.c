@@ -70,6 +70,139 @@ typedef struct
 
 #define COLOR_MANAGER_RESPONSE_RESET 1
 
+typedef struct
+{
+        gboolean active;
+        gboolean changed;
+        gboolean snapshot_valid[THEME_TOKEN_COUNT];
+        gboolean staged_valid[THEME_TOKEN_COUNT];
+        GdkRGBA snapshot[THEME_TOKEN_COUNT];
+        GdkRGBA staged[THEME_TOKEN_COUNT];
+} theme_preferences_stage_state;
+
+static theme_preferences_stage_state theme_preferences_stage;
+
+static gboolean
+theme_preferences_staged_get_color (ThemeSemanticToken token, GdkRGBA *rgba)
+{
+        if (token < 0 || token >= THEME_TOKEN_COUNT || !rgba)
+                return FALSE;
+
+        if (theme_preferences_stage.active && theme_preferences_stage.staged_valid[token])
+        {
+                *rgba = theme_preferences_stage.staged[token];
+                return TRUE;
+        }
+
+        return theme_get_color (token, rgba);
+}
+
+static void
+theme_preferences_stage_recompute_changed (void)
+{
+        ThemeSemanticToken token;
+
+        theme_preferences_stage.changed = FALSE;
+        for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
+        {
+                if (!theme_preferences_stage.snapshot_valid[token] || !theme_preferences_stage.staged_valid[token])
+                        continue;
+                if (!gdk_rgba_equal (&theme_preferences_stage.snapshot[token], &theme_preferences_stage.staged[token]))
+                {
+                        theme_preferences_stage.changed = TRUE;
+                        return;
+                }
+        }
+}
+
+static void
+theme_preferences_stage_sync_runtime_to_snapshot (void)
+{
+        ThemeSemanticToken token;
+
+        for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
+        {
+                if (theme_preferences_stage.snapshot_valid[token])
+                        theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT, token,
+                                                       &theme_preferences_stage.snapshot[token], NULL);
+        }
+}
+
+static void
+theme_preferences_stage_sync_runtime_to_staged (void)
+{
+        ThemeSemanticToken token;
+
+        for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
+        {
+                if (theme_preferences_stage.staged_valid[token])
+                        theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT, token,
+                                                       &theme_preferences_stage.staged[token], NULL);
+        }
+}
+
+static void
+theme_preferences_staged_set_color (ThemeSemanticToken token, const GdkRGBA *rgba,
+                                    gboolean *color_change_flag, gboolean live_preview)
+{
+        if (token < 0 || token >= THEME_TOKEN_COUNT || !rgba)
+                return;
+
+        if (theme_preferences_stage.active)
+        {
+                theme_preferences_stage.staged[token] = *rgba;
+                theme_preferences_stage.staged_valid[token] = TRUE;
+                theme_preferences_stage_recompute_changed ();
+                if (color_change_flag)
+                        *color_change_flag = theme_preferences_stage.changed;
+        }
+
+        if (live_preview)
+                theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT, token, rgba, NULL);
+}
+
+void
+theme_preferences_stage_begin (void)
+{
+        ThemeSemanticToken token;
+
+        memset (&theme_preferences_stage, 0, sizeof (theme_preferences_stage));
+        theme_preferences_stage.active = TRUE;
+
+        for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
+        {
+                GdkRGBA rgba;
+
+                if (!theme_preferences_staged_get_color (token, &rgba))
+                        continue;
+
+                theme_preferences_stage.snapshot[token] = rgba;
+                theme_preferences_stage.staged[token] = rgba;
+                theme_preferences_stage.snapshot_valid[token] = TRUE;
+                theme_preferences_stage.staged_valid[token] = TRUE;
+        }
+}
+
+void
+theme_preferences_stage_commit (void)
+{
+        if (!theme_preferences_stage.active)
+                return;
+
+        theme_preferences_stage_sync_runtime_to_staged ();
+        memset (&theme_preferences_stage, 0, sizeof (theme_preferences_stage));
+}
+
+void
+theme_preferences_stage_discard (void)
+{
+        if (!theme_preferences_stage.active)
+                return;
+
+        theme_preferences_stage_sync_runtime_to_snapshot ();
+        memset (&theme_preferences_stage, 0, sizeof (theme_preferences_stage));
+}
+
 static void
 theme_preferences_show_import_error (GtkWidget *button, const char *message);
 
@@ -116,16 +249,16 @@ theme_preferences_manager_update_preview (theme_color_manager_ui *ui)
         if (!ui)
                 return;
 
-        if (!theme_get_color (THEME_TOKEN_TEXT_FOREGROUND, &text_fg)
-            || !theme_get_color (THEME_TOKEN_TEXT_BACKGROUND, &text_bg)
-            || !theme_get_color (THEME_TOKEN_SELECTION_FOREGROUND, &sel_fg)
-            || !theme_get_color (THEME_TOKEN_SELECTION_BACKGROUND, &sel_bg)
-            || !theme_get_color (THEME_TOKEN_MARKER, &marker)
-            || !theme_get_color (THEME_TOKEN_TAB_NEW_DATA, &tab_new_data)
-            || !theme_get_color (THEME_TOKEN_TAB_NEW_MESSAGE, &tab_new_message)
-            || !theme_get_color (THEME_TOKEN_TAB_HIGHLIGHT, &tab_highlight)
-            || !theme_get_color (THEME_TOKEN_TAB_AWAY, &tab_away)
-            || !theme_get_color (THEME_TOKEN_SPELL, &spell))
+        if (!theme_preferences_staged_get_color (THEME_TOKEN_TEXT_FOREGROUND, &text_fg)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_TEXT_BACKGROUND, &text_bg)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_SELECTION_FOREGROUND, &sel_fg)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_SELECTION_BACKGROUND, &sel_bg)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_MARKER, &marker)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_TAB_NEW_DATA, &tab_new_data)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_TAB_NEW_MESSAGE, &tab_new_message)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_TAB_HIGHLIGHT, &tab_highlight)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_TAB_AWAY, &tab_away)
+            || !theme_preferences_staged_get_color (THEME_TOKEN_SPELL, &spell))
                 return;
 
         gtkutil_apply_palette (ui->preview_window, &text_bg, &text_fg, NULL);
@@ -305,15 +438,12 @@ theme_preferences_color_response_cb (GtkDialog *dialog, gint response_id, gpoint
         if (response_id == GTK_RESPONSE_OK)
         {
                 GdkRGBA rgba;
-                gboolean changed = FALSE;
 
                 gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (dialog), &rgba);
-                theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT,
-                                               data->token,
-                                               &rgba,
-                                               &changed);
-                if (data->color_change_flag)
-                        *data->color_change_flag = *data->color_change_flag || changed;
+                theme_preferences_staged_set_color (data->token,
+                                                    &rgba,
+                                                    data->color_change_flag,
+                                                    TRUE);
                 theme_preferences_color_button_apply (data->button, &rgba);
                 theme_preferences_manager_update_preview ((theme_color_manager_ui *) data->manager_ui);
         }
@@ -332,7 +462,7 @@ theme_preferences_color_cb (GtkWidget *button, gpointer userdata)
 
         token = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "zoitechat-theme-token"));
 
-        if (!theme_get_color (token, &rgba))
+        if (!theme_preferences_staged_get_color (token, &rgba))
                 return;
         dialog = gtk_color_chooser_dialog_new (_("Select color"), GTK_WINDOW (userdata));
 	theme_manager_attach_window (dialog);
@@ -408,14 +538,7 @@ theme_preferences_manager_row_apply (theme_color_manager_row *row, const GdkRGBA
 static void
 theme_preferences_manager_row_commit (theme_color_manager_row *row, const GdkRGBA *rgba)
 {
-        gboolean changed = FALSE;
-
-        theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT,
-                                       row->token,
-                                       rgba,
-                                       &changed);
-        if (row->color_change_flag)
-                *row->color_change_flag = *row->color_change_flag || changed;
+        theme_preferences_staged_set_color (row->token, rgba, row->color_change_flag, TRUE);
         theme_preferences_manager_row_apply (row, rgba);
         theme_preferences_manager_update_preview ((theme_color_manager_ui *) row->manager_ui);
 }
@@ -428,7 +551,7 @@ theme_preferences_manager_entry_commit (theme_color_manager_row *row)
 
         if (!gdk_rgba_parse (&rgba, text))
         {
-                if (theme_get_color (row->token, &rgba))
+                if (theme_preferences_staged_get_color (row->token, &rgba))
                         theme_preferences_manager_row_apply (row, &rgba);
                 return;
         }
@@ -486,7 +609,7 @@ theme_preferences_manager_pick_cb (GtkWidget *button, gpointer user_data)
         GdkRGBA rgba;
         theme_manager_live_picker_data *data;
 
-        if (!theme_get_color (row->token, &rgba))
+        if (!theme_preferences_staged_get_color (row->token, &rgba))
                 return;
 
         dialog = gtk_color_chooser_dialog_new (_("Select color"), row->parent);
@@ -545,7 +668,7 @@ theme_preferences_manager_refresh_rows (theme_color_manager_ui *ui)
                 theme_color_manager_row *row = g_ptr_array_index (ui->rows, i);
                 GdkRGBA rgba;
 
-                if (theme_get_color (row->token, &rgba))
+                if (theme_preferences_staged_get_color (row->token, &rgba))
                         theme_preferences_manager_row_apply (row, &rgba);
         }
 
@@ -564,7 +687,24 @@ theme_preferences_manager_dialog_response_cb (GtkDialog *dialog, gint response_i
                 gboolean changed = FALSE;
 
                 theme_manager_reset_mode_colors (ZOITECHAT_DARK_MODE_LIGHT, &changed);
-                if (ui->color_change_flag)
+                if (theme_preferences_stage.active)
+                {
+                        ThemeSemanticToken token;
+
+                        for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
+                        {
+                                GdkRGBA rgba;
+
+                                if (!theme_get_color (token, &rgba))
+                                        continue;
+                                theme_preferences_stage.staged[token] = rgba;
+                                theme_preferences_stage.staged_valid[token] = TRUE;
+                        }
+                        theme_preferences_stage_recompute_changed ();
+                        if (ui->color_change_flag)
+                                *ui->color_change_flag = theme_preferences_stage.changed;
+                }
+                else if (ui->color_change_flag)
                         *ui->color_change_flag = *ui->color_change_flag || changed;
         }
 
@@ -698,7 +838,7 @@ theme_preferences_create_color_manager_dialog (GtkWindow *parent, gboolean *colo
                 g_free (token_code);
                 g_free (search_text);
 
-                if (theme_get_color (token, &rgba))
+                if (theme_preferences_staged_get_color (token, &rgba))
                         theme_preferences_manager_row_apply (row, &rgba);
 
                 g_signal_connect (G_OBJECT (button), "clicked",
@@ -727,20 +867,15 @@ static void
 theme_preferences_manage_colors_cb (GtkWidget *button, gpointer user_data)
 {
         gboolean *color_change_flag = user_data;
-        gboolean old_changed = FALSE;
         GtkWidget *dialog;
-
-        if (color_change_flag)
-                old_changed = *color_change_flag;
 
         dialog = theme_preferences_create_color_manager_dialog (GTK_WINDOW (gtk_widget_get_toplevel (button)),
                                                                 color_change_flag);
         gtk_dialog_run (GTK_DIALOG (dialog));
         gtk_widget_destroy (dialog);
 
-        if (color_change_flag && *color_change_flag != old_changed &&
-            !theme_manager_save_preferences ())
-                theme_preferences_show_import_error (button, _("Could not save colors.conf."));
+        if (color_change_flag)
+                *color_change_flag = theme_preferences_stage.active ? theme_preferences_stage.changed : *color_change_flag;
 }
 
 static void
@@ -869,11 +1004,7 @@ theme_preferences_import_colors_conf_cb (GtkWidget *button, gpointer user_data)
         char *cfg;
         GError *error = NULL;
         gboolean any_imported = FALSE;
-        gboolean old_changed = FALSE;
         ThemeSemanticToken token;
-
-        if (color_change_flag)
-                old_changed = *color_change_flag;
 
         dialog = gtk_file_chooser_dialog_new (_("Import colors.conf colors"),
                                               GTK_WINDOW (gtk_widget_get_toplevel (button)),
@@ -910,15 +1041,14 @@ theme_preferences_import_colors_conf_cb (GtkWidget *button, gpointer user_data)
                 if (!theme_preferences_read_import_color (cfg, token, &rgba))
                         continue;
 
-                theme_manager_set_token_color (ZOITECHAT_DARK_MODE_LIGHT, token, &rgba, color_change_flag);
+                theme_preferences_staged_set_color (token, &rgba, color_change_flag, TRUE);
                 any_imported = TRUE;
         }
 
         if (!any_imported)
                 theme_preferences_show_import_error (button, _("No importable colors were found in that colors.conf file."));
-        else if (color_change_flag && *color_change_flag != old_changed &&
-                 !theme_manager_save_preferences ())
-                theme_preferences_show_import_error (button, _("Could not save colors.conf."));
+        else if (color_change_flag)
+                *color_change_flag = theme_preferences_stage.active ? theme_preferences_stage.changed : *color_change_flag;
 
         g_free (cfg);
         g_free (path);
@@ -962,7 +1092,7 @@ theme_preferences_create_color_button (GtkWidget *table,
         g_object_set_data (G_OBJECT (but), "zoitechat-theme-color-change", color_change_flag);
         gtk_grid_attach (GTK_GRID (table), but, col, row, 1, 1);
         g_signal_connect (G_OBJECT (but), "clicked", G_CALLBACK (theme_preferences_color_cb), parent);
-        if (theme_get_color (token, &color))
+        if (theme_preferences_staged_get_color (token, &color))
                 theme_preferences_color_button_apply (but, &color);
 }
 
