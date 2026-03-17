@@ -1002,7 +1002,8 @@ servlist_savegui (void)
 		sp[0] = 0;	/* spaces will break the login */
 	/* strcpy (prefs.hex_irc_real_name, gtk_entry_get_text (GTK_ENTRY (entry_greal))); */
 	servlist_save ();
-	save_config (); /* For nicks stored in zoitechat.conf */
+	if (!save_config ())
+		fe_message (_("Could not save zoitechat.conf."), FE_MSG_WARN);
 
 	return 0;
 }

@@ -2193,8 +2193,10 @@ setup_ok_cb (GtkWidget *but, GtkWidget *win)
 {
         gtk_widget_destroy (win);
         setup_apply (&setup_prefs);
-        save_config ();
-        theme_manager_save_preferences ();
+        if (!save_config ())
+                fe_message (_("Could not save zoitechat.conf."), FE_MSG_ERROR);
+        if (!theme_manager_save_preferences ())
+                fe_message (_("Could not save colors.conf."), FE_MSG_ERROR);
 }
 
 static GtkWidget *

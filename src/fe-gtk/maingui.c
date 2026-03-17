@@ -3683,7 +3683,8 @@ static void
 search_set_option (GtkToggleButton *but, guint *pref)
 {
         *pref = gtk_toggle_button_get_active(but);
-        save_config();
+        if (!save_config ())
+                fe_message (_("Could not save zoitechat.conf."), FE_MSG_WARN);
 }
 
 void

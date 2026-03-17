@@ -66,9 +66,10 @@ theme_manager_reset_mode_colors (unsigned int mode, gboolean *palette_changed)
                 *palette_changed = FALSE;
 }
 
-void
+gboolean
 theme_manager_save_preferences (void)
 {
+	return TRUE;
 }
 
 ThemePaletteBehavior

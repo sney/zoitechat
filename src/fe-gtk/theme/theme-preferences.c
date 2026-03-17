@@ -71,6 +71,9 @@ typedef struct
 #define COLOR_MANAGER_RESPONSE_RESET 1
 
 static void
+theme_preferences_show_import_error (GtkWidget *button, const char *message);
+
+static void
 theme_preferences_manager_row_free (gpointer data)
 {
         theme_color_manager_row *row = data;
@@ -735,8 +738,9 @@ theme_preferences_manage_colors_cb (GtkWidget *button, gpointer user_data)
         gtk_dialog_run (GTK_DIALOG (dialog));
         gtk_widget_destroy (dialog);
 
-        if (color_change_flag && *color_change_flag != old_changed)
-                theme_manager_save_preferences ();
+        if (color_change_flag && *color_change_flag != old_changed &&
+            !theme_manager_save_preferences ())
+                theme_preferences_show_import_error (button, _("Could not save colors.conf."));
 }
 
 static void
@@ -912,8 +916,9 @@ theme_preferences_import_colors_conf_cb (GtkWidget *button, gpointer user_data)
 
         if (!any_imported)
                 theme_preferences_show_import_error (button, _("No importable colors were found in that colors.conf file."));
-        else if (color_change_flag && *color_change_flag != old_changed)
-                theme_manager_save_preferences ();
+        else if (color_change_flag && *color_change_flag != old_changed &&
+                 !theme_manager_save_preferences ())
+                theme_preferences_show_import_error (button, _("Could not save colors.conf."));
 
         g_free (cfg);
         g_free (path);

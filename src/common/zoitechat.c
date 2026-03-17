@@ -1104,7 +1104,8 @@ zoitechat_exit (void)
 	plugin_kill_all ();
 	fe_cleanup ();
 
-	save_config ();
+	if (!save_config ())
+		g_printerr ("Could not save zoitechat.conf.\n");
 	if (prefs.save_pevents)
 	{
 		pevent_save (NULL);

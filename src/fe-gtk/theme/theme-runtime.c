@@ -276,7 +276,7 @@ theme_runtime_load_migrated_legacy_color (char *cfg,
 	return palette_read_legacy_color (cfg, mode->legacy_prefix, def->legacy_index, out_color);
 }
 
-static void
+static gboolean
 palette_write_token_color (int fh, const char *mode_name, const ThemePaletteTokenDef *def, const GdkRGBA *color)
 {
 	char prefname[256];
@@ -284,13 +284,13 @@ palette_write_token_color (int fh, const char *mode_name, const ThemePaletteToke
 	guint16 green;
 	guint16 blue;
 
-	g_return_if_fail (mode_name != NULL);
-	g_return_if_fail (def != NULL);
-	g_return_if_fail (color != NULL);
+	g_return_val_if_fail (mode_name != NULL, FALSE);
+	g_return_val_if_fail (def != NULL, FALSE);
+	g_return_val_if_fail (color != NULL, FALSE);
 
 	g_snprintf (prefname, sizeof prefname, "theme.mode.%s.token.%s", mode_name, def->name);
 	theme_palette_color_get_rgb16 (color, &red, &green, &blue);
-	cfg_put_color (fh, red, green, blue, prefname);
+	return cfg_put_color (fh, red, green, blue, prefname);
 }
 
 
@@ -449,7 +449,7 @@ theme_runtime_load (void)
 	user_colors_valid = TRUE;
 }
 
-void
+gboolean
 theme_runtime_save (void)
 {
 	size_t i;
@@ -487,9 +487,13 @@ theme_runtime_save (void)
 
 	fh = zoitechat_open_file ("colors.conf", O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
 	if (fh == -1)
-		return;
+		return FALSE;
 
-	cfg_put_int (fh, THEME_PALETTE_MIGRATION_MARKER_VALUE, (char *) THEME_PALETTE_MIGRATION_MARKER_KEY);
+	if (!cfg_put_int (fh, THEME_PALETTE_MIGRATION_MARKER_VALUE, (char *) THEME_PALETTE_MIGRATION_MARKER_KEY))
+	{
+		close (fh);
+		return FALSE;
+	}
 
 	for (i = 0; i < mode_count; i++)
 	{
@@ -507,11 +511,18 @@ theme_runtime_save (void)
 			if (!custom_tokens[def->token])
 				continue;
 			g_assert (theme_palette_get_color (modes[i].palette, def->token, &color));
-			palette_write_token_color (fh, modes[i].mode_name, def, &color);
+			if (!palette_write_token_color (fh, modes[i].mode_name, def, &color))
+			{
+				close (fh);
+				return FALSE;
+			}
 		}
 	}
 
-	close (fh);
+	if (close (fh) == -1)
+		return FALSE;
+
+	return TRUE;
 }
 
 static gboolean

@@ -43,7 +43,7 @@ void theme_manager_set_mode (unsigned int mode, gboolean *palette_changed);
 void theme_manager_set_token_color (unsigned int mode, ThemeSemanticToken token, const GdkRGBA *color, gboolean *palette_changed);
 void theme_manager_reset_mode_colors (unsigned int mode, gboolean *palette_changed);
 void theme_manager_commit_preferences (unsigned int old_mode, gboolean *color_change);
-void theme_manager_save_preferences (void);
+gboolean theme_manager_save_preferences (void);
 gboolean theme_changed_event_has_reason (const ThemeChangedEvent *event, ThemeChangedReason reason);
 void theme_manager_apply_and_dispatch (unsigned int mode, ThemeChangedReason reasons, gboolean *palette_changed);
 void theme_manager_dispatch_changed (ThemeChangedReason reasons);

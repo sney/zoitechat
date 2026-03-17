@@ -18,7 +18,7 @@ typedef struct
 } ThemeGtkPaletteMap;
 
 void theme_runtime_load (void);
-void theme_runtime_save (void);
+gboolean theme_runtime_save (void);
 gboolean theme_runtime_apply_mode (unsigned int mode, gboolean *palette_changed);
 gboolean theme_runtime_apply_dark_mode (gboolean enable);
 void theme_runtime_user_set_color (ThemeSemanticToken token, const GdkRGBA *col);
