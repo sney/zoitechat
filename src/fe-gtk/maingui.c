@@ -52,6 +52,7 @@
 #include "theme/theme-palette.h"
 #include "maingui.h"
 #include "menu.h"
+#include "preferences-persistence.h"
 #include "fkeys.h"
 #include "userlistgui.h"
 #include "chanview.h"
@@ -178,15 +179,37 @@ static void mg_apply_emoji_fallback_widget (GtkWidget *widget);
 static guint mg_config_save_source_id = 0;
 static gboolean mg_config_prefs_dirty = FALSE;
 
+static void
+mg_show_save_failure (const PreferencesPersistenceResult *save_result)
+{
+        char buffer[192];
+
+        if (!save_result || save_result->success)
+                return;
+
+        if (save_result->partial_failure)
+        {
+                fe_message (_("Could not fully save preferences. zoitechat.conf was written, but colors.conf failed. Retry is possible."), FE_MSG_ERROR);
+                return;
+        }
+
+        g_snprintf (buffer, sizeof (buffer), _("Could not save preferences (%s). Retry is possible."), save_result->failed_file ? save_result->failed_file : _("unknown file"));
+        fe_message (buffer, FE_MSG_ERROR);
+}
+
 static gboolean
 mg_config_save_timeout_cb (gpointer userdata)
 {
+        PreferencesPersistenceResult save_result;
+
         mg_config_save_source_id = 0;
 
         if (!mg_config_prefs_dirty)
                 return G_SOURCE_REMOVE;
 
-        save_config ();
+        save_result = preferences_persistence_save_all ();
+        if (!save_result.success)
+                mg_show_save_failure (&save_result);
         mg_config_prefs_dirty = FALSE;
 
         return G_SOURCE_REMOVE;
@@ -209,6 +232,8 @@ mg_schedule_config_save (void)
 static void
 mg_flush_config_save (void)
 {
+        PreferencesPersistenceResult save_result;
+
         if (mg_config_save_source_id != 0)
         {
                 g_source_remove (mg_config_save_source_id);
@@ -217,7 +242,9 @@ mg_flush_config_save (void)
 
         if (mg_config_prefs_dirty)
         {
-                save_config ();
+                save_result = preferences_persistence_save_all ();
+                if (!save_result.success)
+                        mg_show_save_failure (&save_result);
                 mg_config_prefs_dirty = FALSE;
         }
 }

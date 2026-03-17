@@ -19,6 +19,9 @@ typedef struct
 
 void theme_runtime_load (void);
 gboolean theme_runtime_save (void);
+gboolean theme_runtime_save_prepare (char **temp_path);
+gboolean theme_runtime_save_finalize (const char *temp_path);
+void theme_runtime_save_discard (const char *temp_path);
 gboolean theme_runtime_apply_mode (unsigned int mode, gboolean *palette_changed);
 gboolean theme_runtime_apply_dark_mode (gboolean enable);
 void theme_runtime_user_set_color (ThemeSemanticToken token, const GdkRGBA *col);

@@ -449,12 +449,11 @@ theme_runtime_load (void)
 	user_colors_valid = TRUE;
 }
 
-gboolean
-theme_runtime_save (void)
+static gboolean
+theme_runtime_save_to_fd (int fh)
 {
 	size_t i;
 	size_t j;
-	int fh;
 	ThemePalettePersistenceMode modes[] = {
 		{ "light", "color", &light_palette, &user_colors_valid },
 		{ "dark", "dark_color", &dark_palette, &dark_user_colors_valid },
@@ -485,15 +484,8 @@ theme_runtime_save (void)
 	else
 		modes[1].palette = &dark_palette;
 
-	fh = zoitechat_open_file ("colors.conf", O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
-	if (fh == -1)
-		return FALSE;
-
 	if (!cfg_put_int (fh, THEME_PALETTE_MIGRATION_MARKER_VALUE, (char *) THEME_PALETTE_MIGRATION_MARKER_KEY))
-	{
-		close (fh);
 		return FALSE;
-	}
 
 	for (i = 0; i < mode_count; i++)
 	{
@@ -512,17 +504,129 @@ theme_runtime_save (void)
 				continue;
 			g_assert (theme_palette_get_color (modes[i].palette, def->token, &color));
 			if (!palette_write_token_color (fh, modes[i].mode_name, def, &color))
-			{
-				close (fh);
 				return FALSE;
-			}
 		}
+	}
+
+	return TRUE;
+}
+
+gboolean
+theme_runtime_save_prepare (char **temp_path)
+{
+	int fh;
+	const char *temp_name;
+
+	if (!temp_path)
+		return FALSE;
+
+	temp_name = "colors.conf.new";
+	fh = zoitechat_open_file (temp_name, O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
+	if (fh == -1)
+		return FALSE;
+
+	if (!theme_runtime_save_to_fd (fh))
+	{
+		close (fh);
+		return FALSE;
 	}
 
 	if (close (fh) == -1)
 		return FALSE;
 
+	*temp_path = g_strdup (temp_name);
 	return TRUE;
+}
+
+gboolean
+theme_runtime_save_finalize (const char *temp_path)
+{
+	int src_fh;
+	int dst_fh;
+	char buffer[4096];
+	ssize_t read_len;
+
+	if (!temp_path)
+		return FALSE;
+
+	src_fh = zoitechat_open_file (temp_path, O_RDONLY, 0, XOF_DOMODE);
+	if (src_fh == -1)
+		return FALSE;
+
+	dst_fh = zoitechat_open_file ("colors.conf", O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
+	if (dst_fh == -1)
+	{
+		close (src_fh);
+		return FALSE;
+	}
+
+	while ((read_len = read (src_fh, buffer, sizeof (buffer))) > 0)
+	{
+		ssize_t offset;
+
+		offset = 0;
+		while (offset < read_len)
+		{
+			ssize_t written;
+
+			written = write (dst_fh, buffer + offset, (size_t) (read_len - offset));
+			if (written <= 0)
+			{
+				close (src_fh);
+				close (dst_fh);
+				return FALSE;
+			}
+			offset += written;
+		}
+	}
+
+	if (read_len < 0)
+	{
+		close (src_fh);
+		close (dst_fh);
+		return FALSE;
+	}
+
+	if (close (src_fh) == -1)
+	{
+		close (dst_fh);
+		return FALSE;
+	}
+
+	if (close (dst_fh) == -1)
+		return FALSE;
+
+	return TRUE;
+}
+
+void
+theme_runtime_save_discard (const char *temp_path)
+{
+	int fh;
+
+	if (!temp_path)
+		return;
+
+	fh = zoitechat_open_file (temp_path, O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
+	if (fh != -1)
+		close (fh);
+}
+
+gboolean
+theme_runtime_save (void)
+{
+	char *temp_path = NULL;
+	gboolean result;
+
+	if (!theme_runtime_save_prepare (&temp_path))
+		return FALSE;
+
+	result = theme_runtime_save_finalize (temp_path);
+	if (!result)
+		theme_runtime_save_discard (temp_path);
+	g_free (temp_path);
+
+	return result;
 }
 
 static gboolean

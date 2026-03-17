@@ -40,6 +40,7 @@
 #include "maingui.h"
 #include "pixmaps.h"
 #include "menu.h"
+#include "preferences-persistence.h"
 #include "plugin-tray.h"
 #include "notifications/notification-backend.h"
 
@@ -2191,12 +2192,23 @@ setup_apply (struct zoitechatprefs *pr)
 static void
 setup_ok_cb (GtkWidget *but, GtkWidget *win)
 {
+        PreferencesPersistenceResult save_result;
+        char buffer[192];
+
         gtk_widget_destroy (win);
         setup_apply (&setup_prefs);
-        if (!save_config ())
-                fe_message (_("Could not save zoitechat.conf."), FE_MSG_ERROR);
-        if (!theme_manager_save_preferences ())
-                fe_message (_("Could not save colors.conf."), FE_MSG_ERROR);
+        save_result = preferences_persistence_save_all ();
+        if (save_result.success)
+                return;
+
+        if (save_result.partial_failure)
+        {
+                fe_message (_("Preferences were partially saved. zoitechat.conf succeeded, colors.conf failed. Retry is possible."), FE_MSG_ERROR);
+                return;
+        }
+
+        g_snprintf (buffer, sizeof (buffer), _("Could not save preferences (%s). Retry is possible."), save_result.failed_file ? save_result.failed_file : _("unknown file"));
+        fe_message (buffer, FE_MSG_ERROR);
 }
 
 static GtkWidget *
