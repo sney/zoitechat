@@ -407,6 +407,9 @@ const struct prefs vars[] =
 	{"gui_autoopen_send", P_OFFINT (hex_gui_autoopen_send), TYPE_BOOL},
 	{"gui_chanlist_maxusers", P_OFFINT (hex_gui_chanlist_maxusers), TYPE_INT},
 	{"gui_chanlist_minusers", P_OFFINT (hex_gui_chanlist_minusers), TYPE_INT},
+	{"gui_chanlist_width_channel", P_OFFINT (hex_gui_chanlist_width_channel), TYPE_INT},
+	{"gui_chanlist_width_topic", P_OFFINT (hex_gui_chanlist_width_topic), TYPE_INT},
+	{"gui_chanlist_width_users", P_OFFINT (hex_gui_chanlist_width_users), TYPE_INT},
 	{"gui_compact", P_OFFINT (hex_gui_compact), TYPE_BOOL},
 	{"gui_dialog_height", P_OFFINT (hex_gui_dialog_height), TYPE_INT},
 	{"gui_dialog_left", P_OFFINT (hex_gui_dialog_left), TYPE_INT},
@@ -466,6 +469,8 @@ const struct prefs vars[] =
 	{"gui_ulist_hide", P_OFFINT (hex_gui_ulist_hide), TYPE_BOOL},
 	{"gui_ulist_icons", P_OFFINT (hex_gui_ulist_icons), TYPE_BOOL},
 	{"gui_ulist_pos", P_OFFINT (hex_gui_ulist_pos), TYPE_INT},
+	{"gui_ulist_nick_width", P_OFFINT (hex_gui_ulist_nick_width), TYPE_INT},
+	{"gui_ulist_host_width", P_OFFINT (hex_gui_ulist_host_width), TYPE_INT},
 	{"gui_ulist_show_hosts", P_OFFINT(hex_gui_ulist_show_hosts), TYPE_BOOL},
 	{"gui_ulist_sort", P_OFFINT (hex_gui_ulist_sort), TYPE_INT},
 	{"gui_ulist_style", P_OFFINT (hex_gui_ulist_style), TYPE_BOOL},
@@ -824,6 +829,9 @@ load_default_config(void)
 	prefs.hex_flood_msg_time = 30;
 	prefs.hex_gui_chanlist_maxusers = 9999;
 	prefs.hex_gui_chanlist_minusers = 5;
+	prefs.hex_gui_chanlist_width_channel = 0;
+	prefs.hex_gui_chanlist_width_topic = 0;
+	prefs.hex_gui_chanlist_width_users = 0;
 	prefs.hex_gui_dialog_height = 256;
 	prefs.hex_gui_dialog_width = 500;
 	prefs.hex_gui_lagometer = 1;
@@ -837,6 +845,8 @@ load_default_config(void)
 	prefs.hex_gui_tab_trunc = 20;
 	prefs.hex_gui_throttlemeter = 1;
 	prefs.hex_gui_ulist_pos = 3;
+	prefs.hex_gui_ulist_nick_width = 0;
+	prefs.hex_gui_ulist_host_width = 0;
 	prefs.hex_gui_win_height = 400;
 	prefs.hex_gui_win_width = 640;
 	prefs.hex_irc_ban_type = 1;

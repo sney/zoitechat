@@ -248,6 +248,9 @@ struct zoitechatprefs
 	int hex_flood_msg_time;
 	int hex_gui_chanlist_maxusers;
 	int hex_gui_chanlist_minusers;
+	int hex_gui_chanlist_width_channel;
+	int hex_gui_chanlist_width_topic;
+	int hex_gui_chanlist_width_users;
 	int hex_gui_dialog_height;
 	int hex_gui_dialog_left;
 	int hex_gui_dialog_top;
@@ -269,6 +272,8 @@ struct zoitechatprefs
 	int hex_gui_transparency;
 	int hex_gui_throttlemeter;
 	int hex_gui_ulist_pos;
+	int hex_gui_ulist_nick_width;
+	int hex_gui_ulist_host_width;
 	int hex_gui_ulist_sort;
 	int hex_gui_url_mod;
 	int hex_gui_win_height;

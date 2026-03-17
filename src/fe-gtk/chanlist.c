@@ -74,6 +74,19 @@ chanlistrow;
 
 #define GET_MODEL(xserv) (gtk_tree_view_get_model(GTK_TREE_VIEW(xserv->gui->chanlist_list)))
 
+#define CHANLIST_COL_WIDTH_MIN_CHANNEL 60
+#define CHANLIST_COL_WIDTH_MIN_USERS 40
+#define CHANLIST_COL_WIDTH_MIN_TOPIC 60
+
+static int
+chanlist_clamp_width (int width, int min_width)
+{
+	if (width < min_width)
+		return min_width;
+
+	return width;
+}
+
 static void
 chanlist_set_label_alignment (GtkWidget *widget)
 {
@@ -805,6 +818,26 @@ chanlist_button_cb (GtkTreeView *tree, GdkEventButton *event, server *serv)
 static void
 chanlist_destroy_widget (GtkWidget *wid, server *serv)
 {
+	GtkTreeViewColumn *column;
+
+	column = gtk_tree_view_get_column (GTK_TREE_VIEW (serv->gui->chanlist_list), COL_CHANNEL);
+	if (column)
+		prefs.hex_gui_chanlist_width_channel =
+			chanlist_clamp_width (gtk_tree_view_column_get_width (column), CHANLIST_COL_WIDTH_MIN_CHANNEL);
+
+	column = gtk_tree_view_get_column (GTK_TREE_VIEW (serv->gui->chanlist_list), COL_USERS);
+	if (column)
+		prefs.hex_gui_chanlist_width_users =
+			chanlist_clamp_width (gtk_tree_view_column_get_width (column), CHANLIST_COL_WIDTH_MIN_USERS);
+
+	column = gtk_tree_view_get_column (GTK_TREE_VIEW (serv->gui->chanlist_list), COL_TOPIC);
+	if (column)
+		prefs.hex_gui_chanlist_width_topic =
+			chanlist_clamp_width (gtk_tree_view_column_get_width (column), CHANLIST_COL_WIDTH_MIN_TOPIC);
+
+	if (!save_config ())
+		fe_message (_("Could not save zoitechat.conf."), FE_MSG_WARN);
+
 	custom_list_clear ((CustomList *)GET_MODEL (serv));
 	chanlist_data_free (serv);
 
@@ -944,6 +977,37 @@ chanlist_opengui (server *serv, int do_refresh)
 	chanlist_add_column (view, COL_CHANNEL, 96, _("Channel"), FALSE);
 	chanlist_add_column (view, COL_USERS,   50, _("Users"),   TRUE);
 	chanlist_add_column (view, COL_TOPIC,   50, _("Topic"),   FALSE);
+
+	if (prefs.hex_gui_chanlist_width_channel > 0)
+	{
+		GtkTreeViewColumn *column = gtk_tree_view_get_column (GTK_TREE_VIEW (view), COL_CHANNEL);
+		if (column)
+			gtk_tree_view_column_set_fixed_width (column,
+				chanlist_clamp_width (prefs.hex_gui_chanlist_width_channel, CHANLIST_COL_WIDTH_MIN_CHANNEL));
+	}
+
+	if (prefs.hex_gui_chanlist_width_users > 0)
+	{
+		GtkTreeViewColumn *column = gtk_tree_view_get_column (GTK_TREE_VIEW (view), COL_USERS);
+		if (column)
+		{
+			gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
+			gtk_tree_view_column_set_fixed_width (column,
+				chanlist_clamp_width (prefs.hex_gui_chanlist_width_users, CHANLIST_COL_WIDTH_MIN_USERS));
+			gtk_tree_view_column_set_resizable (column, FALSE);
+		}
+	}
+
+	if (prefs.hex_gui_chanlist_width_topic > 0)
+	{
+		GtkTreeViewColumn *column = gtk_tree_view_get_column (GTK_TREE_VIEW (view), COL_TOPIC);
+		if (column)
+		{
+			gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
+			gtk_tree_view_column_set_fixed_width (column,
+				chanlist_clamp_width (prefs.hex_gui_chanlist_width_topic, CHANLIST_COL_WIDTH_MIN_TOPIC));
+		}
+	}
 	gtk_tree_view_set_grid_lines (GTK_TREE_VIEW (view), GTK_TREE_VIEW_GRID_LINES_HORIZONTAL);
 	gtk_tree_selection_set_mode (gtk_tree_view_get_selection (GTK_TREE_VIEW (view)), GTK_SELECTION_MULTIPLE);
 	/* this is a speed up, but no horizontal scrollbar :( */

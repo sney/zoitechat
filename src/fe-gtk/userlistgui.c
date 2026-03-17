@@ -53,6 +53,29 @@ enum
 static void userlist_store_color (GtkListStore *store, GtkTreeIter *iter, ThemeSemanticToken token, gboolean has_token);
 
 static void
+userlist_column_width_notify_cb (GtkTreeViewColumn *column, GParamSpec *pspec, gpointer userdata)
+{
+	(void)pspec;
+
+	int width = gtk_tree_view_column_get_width (column);
+	int *target = (int *)userdata;
+
+	if (!target || width < 1 || *target == width)
+		return;
+
+	*target = width;
+}
+
+static void
+userlist_apply_saved_column_width (GtkTreeViewColumn *column, int width)
+{
+	if (!column || width < 1)
+		return;
+
+	gtk_tree_view_column_set_fixed_width (column, width);
+}
+
+static void
 userlist_update_min_width (session *sess)
 {
 	GtkRequisition minimum;
@@ -71,7 +94,6 @@ userlist_update_min_width (session *sess)
 	scrolled_window = gtk_widget_get_parent (sess->gui->user_tree);
 	if (GTK_IS_SCROLLED_WINDOW (scrolled_window))
 		gtk_scrolled_window_set_min_content_width (GTK_SCROLLED_WINDOW (scrolled_window), width);
-	gtk_widget_set_size_request (sess->gui->user_tree, width, -1);
 	gtk_widget_set_size_request (sess->gui->user_box, width, -1);
 }
 
@@ -712,6 +734,11 @@ userlist_add_columns (GtkTreeView * treeview)
 	gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 	gtk_tree_view_column_set_expand (column, TRUE);
 	gtk_tree_view_column_set_min_width (column, 1);
+	gtk_tree_view_column_set_resizable (column, TRUE);
+	userlist_apply_saved_column_width (column, prefs.hex_gui_ulist_nick_width);
+	g_signal_connect (G_OBJECT (column), "notify::width",
+							G_CALLBACK (userlist_column_width_notify_cb),
+							&prefs.hex_gui_ulist_nick_width);
 
 	if (prefs.hex_gui_ulist_show_hosts)
 	{
@@ -728,6 +755,11 @@ userlist_add_columns (GtkTreeView * treeview)
 		gtk_tree_view_column_set_sizing (column, GTK_TREE_VIEW_COLUMN_FIXED);
 		gtk_tree_view_column_set_expand (column, TRUE);
 		gtk_tree_view_column_set_min_width (column, 1);
+		gtk_tree_view_column_set_resizable (column, TRUE);
+		userlist_apply_saved_column_width (column, prefs.hex_gui_ulist_host_width);
+		g_signal_connect (G_OBJECT (column), "notify::width",
+								G_CALLBACK (userlist_column_width_notify_cb),
+								&prefs.hex_gui_ulist_host_width);
 	}
 }
 
@@ -854,7 +886,7 @@ userlist_create (GtkWidget *box)
 	treeview = gtk_tree_view_new ();
 	gtk_widget_set_name (treeview, "zoitechat-userlist");
 	gtk_widget_set_can_focus (treeview, TRUE);
-	gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (treeview), FALSE);
+	gtk_tree_view_set_headers_visible (GTK_TREE_VIEW (treeview), TRUE);
 	gtk_tree_selection_set_mode (gtk_tree_view_get_selection
 										  (GTK_TREE_VIEW (treeview)),
 										  GTK_SELECTION_MULTIPLE);
