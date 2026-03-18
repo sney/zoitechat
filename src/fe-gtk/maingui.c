@@ -307,6 +307,34 @@ mg_set_label_alignment_start (GtkWidget *widget)
 	gtk_widget_set_valign (widget, GTK_ALIGN_CENTER);
 }
 
+static void
+mg_apply_compact_mode_css (GtkWidget *widget)
+{
+	GtkStyleContext *context;
+	GtkCssProvider *provider;
+
+	if (!widget)
+		return;
+
+	context = gtk_widget_get_style_context (widget);
+	if (!context)
+		return;
+
+	provider = g_object_get_data (G_OBJECT (widget), "mg-mode-css-provider");
+	if (!provider)
+	{
+		provider = gtk_css_provider_new ();
+		g_object_set_data_full (G_OBJECT (widget), "mg-mode-css-provider", provider, g_object_unref);
+	}
+
+	gtk_css_provider_load_from_data (provider,
+		".zoitechat-mode-control { min-height: 11px; padding-top: 0; padding-bottom: 0; }"
+		".zoitechat-mode-control label { padding-top: 0; padding-bottom: 0; }",
+		-1, NULL);
+	gtk_style_context_add_class (context, "zoitechat-mode-control");
+	theme_css_apply_widget_provider (widget, GTK_STYLE_PROVIDER (provider));
+}
+
 static GtkWidget *
 mg_box_new (GtkOrientation orientation, gboolean homogeneous, gint spacing)
 {
@@ -2716,8 +2744,10 @@ mg_create_flagbutton (char *tip, GtkWidget *box, char *face)
         gtk_label_set_markup (GTK_LABEL(lbl), label_markup);
 
         btn = gtk_toggle_button_new ();
-        gtk_widget_set_size_request (btn, -1, 0);
+        gtk_widget_set_size_request (btn, -1, 11);
         gtk_widget_set_tooltip_text (btn, tip);
+        gtk_button_set_relief (GTK_BUTTON (btn), GTK_RELIEF_NONE);
+        mg_apply_compact_mode_css (btn);
         gtk_container_add (GTK_CONTAINER(btn), lbl);
 
         gtk_box_pack_start (GTK_BOX (box), btn, 0, 0, 0);
@@ -2801,9 +2831,10 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         gui->key_entry = gtk_entry_new ();
         gtk_widget_set_name (gui->key_entry, "zoitechat-inputbox");
         gtk_entry_set_max_length (GTK_ENTRY (gui->key_entry), 23);
-        gtk_widget_set_size_request (gui->key_entry, 115, -1);
+        gtk_widget_set_size_request (gui->key_entry, 115, 11);
         gtk_box_pack_start (GTK_BOX (box), gui->key_entry, 0, 0, 0);
         mg_apply_emoji_fallback_widget (gui->key_entry);
+        mg_apply_compact_mode_css (gui->key_entry);
         g_signal_connect (G_OBJECT (gui->key_entry), "activate",
                                                         G_CALLBACK (mg_key_entry_cb), NULL);
         g_signal_connect (G_OBJECT (gui->key_entry), "key-press-event",
@@ -2816,9 +2847,10 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         gui->limit_entry = gtk_entry_new ();
         gtk_widget_set_name (gui->limit_entry, "zoitechat-inputbox");
         gtk_entry_set_max_length (GTK_ENTRY (gui->limit_entry), 10);
-        gtk_widget_set_size_request (gui->limit_entry, 30, -1);
+        gtk_widget_set_size_request (gui->limit_entry, 30, 11);
         gtk_box_pack_start (GTK_BOX (box), gui->limit_entry, 0, 0, 0);
         mg_apply_emoji_fallback_widget (gui->limit_entry);
+        mg_apply_compact_mode_css (gui->limit_entry);
         g_signal_connect (G_OBJECT (gui->limit_entry), "activate",
                                                         G_CALLBACK (mg_limit_entry_cb), NULL);
         g_signal_connect (G_OBJECT (gui->limit_entry), "key-press-event",
@@ -2904,11 +2936,14 @@ mg_create_dialogbuttons (GtkWidget *box)
 static void
 mg_create_topicbar (session *sess, GtkWidget *box)
 {
-        GtkWidget *hbox, *topic, *bbox;
-        session_gui *gui = sess->gui;
+	GtkWidget *vbox, *hbox, *mode_hbox, *topic, *bbox;
+	session_gui *gui = sess->gui;
 
-        gui->topic_bar = hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (box), hbox, 0, 0, 0);
+	gui->topic_bar = vbox = mg_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (box), vbox, 0, 0, 0);
+
+	hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (vbox), hbox, 0, 0, 0);
 
         if (!gui->is_tab)
                 sess->res->tab = NULL;
@@ -2931,13 +2966,16 @@ mg_create_topicbar (session *sess, GtkWidget *box)
         g_signal_connect (G_OBJECT (topic), "leave-notify-event",
                                                         G_CALLBACK (mg_topic_leave_cb), NULL);
 
-        gui->topicbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
-        mg_create_chanmodebuttons (gui, bbox);
+	gui->dialogbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
+	mg_create_dialogbuttons (bbox);
 
-        gui->dialogbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
-        mg_create_dialogbuttons (bbox);
+	mode_hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (vbox), mode_hbox, 0, 0, 0);
+
+	gui->topicbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_end (GTK_BOX (mode_hbox), bbox, 0, 0, 0);
+	mg_create_chanmodebuttons (gui, bbox);
 }
 
 /* check if a word is clickable */
