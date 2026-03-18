@@ -3290,19 +3290,16 @@ mg_theme_window_destroy_cb (GtkWidget *widget, gpointer userdata)
 static void
 mg_create_userlist (session_gui *gui, GtkWidget *box)
 {
-        GtkWidget *frame, *ulist, *vbox;
+        GtkWidget *ulist, *vbox;
 
         vbox = mg_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 1);
         gtk_box_pack_start (GTK_BOX (box), vbox, TRUE, TRUE, 0);
 
-        frame = gtk_frame_new (NULL);
-        if (prefs.hex_gui_ulist_count)
-                gtk_box_pack_start (GTK_BOX (vbox), frame, 0, 0, GUI_SPACING);
-
         gui->namelistinfo = gtk_label_new (NULL);
         gtk_label_set_xalign (GTK_LABEL (gui->namelistinfo), 0.0f);
         gtk_widget_set_halign (gui->namelistinfo, GTK_ALIGN_START);
-        gtk_container_add (GTK_CONTAINER (frame), gui->namelistinfo);
+        if (prefs.hex_gui_ulist_count)
+                gtk_box_pack_start (GTK_BOX (vbox), gui->namelistinfo, 0, 0, 0);
 
         gui->user_tree = ulist = userlist_create (vbox);
 
