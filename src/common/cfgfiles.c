@@ -407,6 +407,9 @@ const struct prefs vars[] =
 	{"gui_autoopen_send", P_OFFINT (hex_gui_autoopen_send), TYPE_BOOL},
 	{"gui_chanlist_maxusers", P_OFFINT (hex_gui_chanlist_maxusers), TYPE_INT},
 	{"gui_chanlist_minusers", P_OFFINT (hex_gui_chanlist_minusers), TYPE_INT},
+	{"gui_chanlist_width_channel", P_OFFINT (hex_gui_chanlist_width_channel), TYPE_INT},
+	{"gui_chanlist_width_topic", P_OFFINT (hex_gui_chanlist_width_topic), TYPE_INT},
+	{"gui_chanlist_width_users", P_OFFINT (hex_gui_chanlist_width_users), TYPE_INT},
 	{"gui_compact", P_OFFINT (hex_gui_compact), TYPE_BOOL},
 	{"gui_dialog_height", P_OFFINT (hex_gui_dialog_height), TYPE_INT},
 	{"gui_dialog_left", P_OFFINT (hex_gui_dialog_left), TYPE_INT},
@@ -466,6 +469,8 @@ const struct prefs vars[] =
 	{"gui_ulist_hide", P_OFFINT (hex_gui_ulist_hide), TYPE_BOOL},
 	{"gui_ulist_icons", P_OFFINT (hex_gui_ulist_icons), TYPE_BOOL},
 	{"gui_ulist_pos", P_OFFINT (hex_gui_ulist_pos), TYPE_INT},
+	{"gui_ulist_nick_width", P_OFFINT (hex_gui_ulist_nick_width), TYPE_INT},
+	{"gui_ulist_host_width", P_OFFINT (hex_gui_ulist_host_width), TYPE_INT},
 	{"gui_ulist_show_hosts", P_OFFINT(hex_gui_ulist_show_hosts), TYPE_BOOL},
 	{"gui_ulist_sort", P_OFFINT (hex_gui_ulist_sort), TYPE_INT},
 	{"gui_ulist_style", P_OFFINT (hex_gui_ulist_style), TYPE_BOOL},
@@ -824,6 +829,9 @@ load_default_config(void)
 	prefs.hex_flood_msg_time = 30;
 	prefs.hex_gui_chanlist_maxusers = 9999;
 	prefs.hex_gui_chanlist_minusers = 5;
+	prefs.hex_gui_chanlist_width_channel = 0;
+	prefs.hex_gui_chanlist_width_topic = 0;
+	prefs.hex_gui_chanlist_width_users = 0;
 	prefs.hex_gui_dialog_height = 256;
 	prefs.hex_gui_dialog_width = 500;
 	prefs.hex_gui_lagometer = 1;
@@ -837,6 +845,8 @@ load_default_config(void)
 	prefs.hex_gui_tab_trunc = 20;
 	prefs.hex_gui_throttlemeter = 1;
 	prefs.hex_gui_ulist_pos = 3;
+	prefs.hex_gui_ulist_nick_width = 0;
+	prefs.hex_gui_ulist_host_width = 0;
 	prefs.hex_gui_win_height = 400;
 	prefs.hex_gui_win_width = 640;
 	prefs.hex_irc_ban_type = 1;
@@ -1009,14 +1019,50 @@ load_config (void)
 	return 0;
 }
 
-int
-save_config (void)
+static int
+save_config_write_to_fd (int fh)
 {
-	int fh, i;
-	char *config, *new_config;
+	int i;
+
+	if (!cfg_put_str (fh, "version", PACKAGE_VERSION))
+		return 0;
+
+	i = 0;
+	do
+	{
+		switch (vars[i].type)
+		{
+		case TYPE_STR:
+			if (!cfg_put_str (fh, vars[i].name, (char *) &prefs + vars[i].offset))
+				return 0;
+			break;
+		case TYPE_INT:
+		case TYPE_BOOL:
+			if (!cfg_put_int (fh, *((int *) &prefs + vars[i].offset), vars[i].name))
+				return 0;
+		}
+
+		if (vars[i].after_update != NULL)
+			vars[i].after_update();
+		i++;
+	}
+	while (vars[i].name);
+
+	return 1;
+}
+
+int
+save_config_prepare (char **temp_path)
+{
+	int fh;
+	char *config;
+	char *new_config;
 
 	if (check_config_dir () != 0)
 		make_config_dirs ();
+
+	if (!temp_path)
+		return 0;
 
 	config = default_file ();
 	new_config = g_strconcat (config, ".new", NULL);
@@ -1028,43 +1074,12 @@ save_config (void)
 		return 0;
 	}
 
-	if (!cfg_put_str (fh, "version", PACKAGE_VERSION))
+	if (!save_config_write_to_fd (fh))
 	{
 		close (fh);
 		g_free (new_config);
 		return 0;
 	}
-
-	i = 0;
-	do
-	{
-		switch (vars[i].type)
-		{
-		case TYPE_STR:
-			if (!cfg_put_str (fh, vars[i].name, (char *) &prefs + vars[i].offset))
-			{
-				close (fh);
-				g_free (new_config);
-				return 0;
-			}
-			break;
-		case TYPE_INT:
-		case TYPE_BOOL:
-			if (!cfg_put_int (fh, *((int *) &prefs + vars[i].offset), vars[i].name))
-			{
-				close (fh);
-				g_free (new_config);
-				return 0;
-			}
-		}
-
-		if (vars[i].after_update != NULL)
-		{
-			vars[i].after_update();
-		}
-		i++;
-	}
-	while (vars[i].name);
 
 	if (close (fh) == -1)
 	{
@@ -1072,17 +1087,52 @@ save_config (void)
 		return 0;
 	}
 
-#ifdef WIN32
-	g_unlink (config);	/* win32 can't rename to an existing file */
-#endif
-	if (g_rename (new_config, config) == -1)
-	{
-		g_free (new_config);
+	*temp_path = new_config;
+	return 1;
+}
+
+int
+save_config_finalize (const char *temp_path)
+{
+	char *config;
+
+	if (!temp_path)
 		return 0;
-	}
-	g_free (new_config);
+
+	config = default_file ();
+#ifdef WIN32
+	g_unlink (config);
+#endif
+	if (g_rename (temp_path, config) == -1)
+		return 0;
 
 	return 1;
+}
+
+void
+save_config_discard (const char *temp_path)
+{
+	if (!temp_path)
+		return;
+
+	g_unlink (temp_path);
+}
+
+int
+save_config (void)
+{
+	char *temp_path = NULL;
+	int result;
+
+	if (!save_config_prepare (&temp_path))
+		return 0;
+
+	result = save_config_finalize (temp_path);
+	if (!result)
+		save_config_discard (temp_path);
+	g_free (temp_path);
+
+	return result;
 }
 
 static void

@@ -57,9 +57,10 @@ theme_runtime_load (void)
 {
 }
 
-void
+gboolean
 theme_runtime_save (void)
 {
+	return TRUE;
 }
 
 void

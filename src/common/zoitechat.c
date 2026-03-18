@@ -1104,7 +1104,18 @@ zoitechat_exit (void)
 	plugin_kill_all ();
 	fe_cleanup ();
 
-	save_config ();
+	{
+		fe_preferences_save_result save_result;
+
+		save_result = fe_preferences_persistence_save_all ();
+		if (!save_result.success)
+		{
+			if (save_result.partial_failure || (!save_result.config_failed && save_result.theme_failed))
+				g_printerr ("Could not fully save preferences. zoitechat.conf was written, but colors.conf failed.\n");
+			else
+				g_printerr ("Could not save zoitechat.conf.\n");
+		}
+	}
 	if (prefs.save_pevents)
 	{
 		pevent_save (NULL);

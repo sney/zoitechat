@@ -119,8 +119,9 @@ void theme_runtime_load (void)
 {
 }
 
-void theme_runtime_save (void)
+gboolean theme_runtime_save (void)
 {
+	return TRUE;
 }
 
 gboolean theme_runtime_is_dark_active (void)

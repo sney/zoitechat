@@ -40,6 +40,7 @@
 #include "maingui.h"
 #include "pixmaps.h"
 #include "menu.h"
+#include "preferences-persistence.h"
 #include "plugin-tray.h"
 #include "notifications/notification-backend.h"
 
@@ -893,7 +894,7 @@ setup_create_spin (GtkWidget *table, int row, const setting *set)
                 gtk_widget_set_tooltip_text (wid, _(set->tooltip));
         gtk_spin_button_set_value (GTK_SPIN_BUTTON (wid),
                                                                                 setup_get_int (&setup_prefs, set));
-        g_signal_connect (G_OBJECT (wid), "value_changed",
+        g_signal_connect (G_OBJECT (wid), "value-changed",
                                                         G_CALLBACK (setup_spin_cb), (gpointer)set);
         gtk_box_pack_start (GTK_BOX (rbox), wid, 0, 0, 0);
 
@@ -949,7 +950,7 @@ setup_create_hscale (GtkWidget *table, int row, const setting *set)
         wid = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0., 255., 1.);
         gtk_scale_set_value_pos (GTK_SCALE (wid), GTK_POS_RIGHT);
         gtk_range_set_value (GTK_RANGE (wid), setup_get_int (&setup_prefs, set));
-        g_signal_connect (G_OBJECT(wid), "value_changed",
+        g_signal_connect (G_OBJECT(wid), "value-changed",
                                                         G_CALLBACK (setup_hscale_cb), (gpointer)set);
         setup_table_attach (table, wid, 3, 6, row, row + 1, TRUE, FALSE,
                             SETUP_ALIGN_FILL, SETUP_ALIGN_FILL, 0, 0);
@@ -1965,7 +1966,7 @@ setup_create_tree (GtkWidget *box, GtkWidget *book)
         gtk_tree_selection_set_mode (sel, GTK_SELECTION_BROWSE);
         gtk_tree_selection_set_select_function (sel, setup_tree_select_filter,
                                                                                                                  NULL, NULL);
-        g_signal_connect (G_OBJECT (tree), "cursor_changed",
+        g_signal_connect (G_OBJECT (tree), "cursor-changed",
                                                         G_CALLBACK (setup_tree_cb), book);
 
         renderer = gtk_cell_renderer_text_new ();
@@ -2191,10 +2192,32 @@ setup_apply (struct zoitechatprefs *pr)
 static void
 setup_ok_cb (GtkWidget *but, GtkWidget *win)
 {
-        gtk_widget_destroy (win);
+        PreferencesPersistenceResult save_result;
+        struct zoitechatprefs old_prefs;
+        char buffer[192];
+
+        memcpy (&old_prefs, &prefs, sizeof (prefs));
+        theme_preferences_stage_apply ();
         setup_apply (&setup_prefs);
-        save_config ();
-        theme_manager_save_preferences ();
+        save_result = preferences_persistence_save_all ();
+        if (save_result.success)
+        {
+                theme_preferences_stage_commit ();
+                gtk_widget_destroy (win);
+                return;
+        }
+
+        memcpy (&prefs, &old_prefs, sizeof (prefs));
+        theme_preferences_stage_discard ();
+
+        if (save_result.partial_failure)
+        {
+                fe_message (_("Preferences were partially saved. zoitechat.conf succeeded, colors.conf failed. Retry is possible."), FE_MSG_ERROR);
+                return;
+        }
+
+        g_snprintf (buffer, sizeof (buffer), _("Could not save preferences (%s). Retry is possible."), save_result.failed_file ? save_result.failed_file : _("unknown file"));
+        fe_message (buffer, FE_MSG_ERROR);
 }
 
 static GtkWidget *
@@ -2242,6 +2265,7 @@ setup_close_cb (GtkWidget *win, GtkWidget **swin)
 {
         *swin = NULL;
 
+        theme_preferences_stage_discard ();
 
         if (font_dialog)
         {
@@ -2262,6 +2286,7 @@ setup_open (void)
         memcpy (&setup_prefs, &prefs, sizeof (prefs));
 
         color_change = FALSE;
+        theme_preferences_stage_begin ();
         setup_window = setup_window_open ();
 
         g_signal_connect (G_OBJECT (setup_window), "destroy",

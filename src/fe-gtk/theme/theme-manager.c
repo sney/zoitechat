@@ -284,10 +284,10 @@ theme_manager_commit_preferences (unsigned int old_mode, gboolean *color_change)
 		fe_set_auto_dark_mode_state (theme_policy_is_dark_mode_active (ZOITECHAT_DARK_MODE_AUTO));
 }
 
-void
+gboolean
 theme_manager_save_preferences (void)
 {
-	theme_runtime_save ();
+	return theme_runtime_save ();
 }
 
 gboolean

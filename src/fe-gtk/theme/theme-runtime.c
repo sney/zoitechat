@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #ifdef WIN32
 #include <io.h>
@@ -276,7 +277,7 @@ theme_runtime_load_migrated_legacy_color (char *cfg,
 	return palette_read_legacy_color (cfg, mode->legacy_prefix, def->legacy_index, out_color);
 }
 
-static void
+static gboolean
 palette_write_token_color (int fh, const char *mode_name, const ThemePaletteTokenDef *def, const GdkRGBA *color)
 {
 	char prefname[256];
@@ -284,13 +285,13 @@ palette_write_token_color (int fh, const char *mode_name, const ThemePaletteToke
 	guint16 green;
 	guint16 blue;
 
-	g_return_if_fail (mode_name != NULL);
-	g_return_if_fail (def != NULL);
-	g_return_if_fail (color != NULL);
+	g_return_val_if_fail (mode_name != NULL, FALSE);
+	g_return_val_if_fail (def != NULL, FALSE);
+	g_return_val_if_fail (color != NULL, FALSE);
 
 	g_snprintf (prefname, sizeof prefname, "theme.mode.%s.token.%s", mode_name, def->name);
 	theme_palette_color_get_rgb16 (color, &red, &green, &blue);
-	cfg_put_color (fh, red, green, blue, prefname);
+	return cfg_put_color (fh, red, green, blue, prefname);
 }
 
 
@@ -449,12 +450,11 @@ theme_runtime_load (void)
 	user_colors_valid = TRUE;
 }
 
-void
-theme_runtime_save (void)
+static gboolean
+theme_runtime_save_to_fd (int fh)
 {
 	size_t i;
 	size_t j;
-	int fh;
 	ThemePalettePersistenceMode modes[] = {
 		{ "light", "color", &light_palette, &user_colors_valid },
 		{ "dark", "dark_color", &dark_palette, &dark_user_colors_valid },
@@ -485,11 +485,8 @@ theme_runtime_save (void)
 	else
 		modes[1].palette = &dark_palette;
 
-	fh = zoitechat_open_file ("colors.conf", O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
-	if (fh == -1)
-		return;
-
-	cfg_put_int (fh, THEME_PALETTE_MIGRATION_MARKER_VALUE, (char *) THEME_PALETTE_MIGRATION_MARKER_KEY);
+	if (!cfg_put_int (fh, THEME_PALETTE_MIGRATION_MARKER_VALUE, (char *) THEME_PALETTE_MIGRATION_MARKER_KEY))
+		return FALSE;
 
 	for (i = 0; i < mode_count; i++)
 	{
@@ -507,11 +504,101 @@ theme_runtime_save (void)
 			if (!custom_tokens[def->token])
 				continue;
 			g_assert (theme_palette_get_color (modes[i].palette, def->token, &color));
-			palette_write_token_color (fh, modes[i].mode_name, def, &color);
+			if (!palette_write_token_color (fh, modes[i].mode_name, def, &color))
+				return FALSE;
 		}
 	}
 
-	close (fh);
+	return TRUE;
+}
+
+gboolean
+theme_runtime_save_prepare (char **temp_path)
+{
+	int fh;
+	char *temp_name;
+	const char *config_dir;
+
+	if (!temp_path)
+		return FALSE;
+
+	config_dir = get_xdir ();
+	if (!config_dir)
+		return FALSE;
+
+	temp_name = g_build_filename (config_dir, "colors.conf.new.XXXXXX", NULL);
+	fh = g_mkstemp (temp_name);
+	if (fh == -1)
+	{
+		g_free (temp_name);
+		return FALSE;
+	}
+
+	if (!theme_runtime_save_to_fd (fh))
+	{
+		close (fh);
+		g_unlink (temp_name);
+		g_free (temp_name);
+		return FALSE;
+	}
+
+	if (close (fh) == -1)
+	{
+		g_unlink (temp_name);
+		g_free (temp_name);
+		return FALSE;
+	}
+
+	*temp_path = temp_name;
+	return TRUE;
+}
+
+gboolean
+theme_runtime_save_finalize (const char *temp_path)
+{
+	char *config_path;
+
+	if (!temp_path)
+		return FALSE;
+
+	config_path = g_build_filename (get_xdir (), "colors.conf", NULL);
+#ifdef WIN32
+	g_unlink (config_path);
+#endif
+	if (g_rename (temp_path, config_path) == -1)
+	{
+		g_free (config_path);
+		return FALSE;
+	}
+	g_free (config_path);
+
+	return TRUE;
+}
+
+void
+theme_runtime_save_discard (const char *temp_path)
+{
+	if (!temp_path)
+		return;
+
+	g_unlink (temp_path);
+}
+
+gboolean
+theme_runtime_save (void)
+{
+	char *temp_path = NULL;
+	gboolean result;
+
+	if (!theme_runtime_save_prepare (&temp_path))
+		return FALSE;
+
+	result = theme_runtime_save_finalize (temp_path);
+	if (!result)
+		theme_runtime_save_discard (temp_path);
+	g_free (temp_path);
+
+	return result;
 }
 
 static gboolean

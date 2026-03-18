@@ -52,6 +52,7 @@
 #include "theme/theme-palette.h"
 #include "maingui.h"
 #include "menu.h"
+#include "preferences-persistence.h"
 #include "fkeys.h"
 #include "userlistgui.h"
 #include "chanview.h"
@@ -173,6 +174,81 @@ enum
 
 static void mg_apply_emoji_fallback_widget (GtkWidget *widget);
 
+#define MG_CONFIG_SAVE_DEBOUNCE_MS 250
+
+static guint mg_config_save_source_id = 0;
+static gboolean mg_config_prefs_dirty = FALSE;
+
+static void
+mg_show_save_failure (const PreferencesPersistenceResult *save_result)
+{
+        char buffer[192];
+
+        if (!save_result || save_result->success)
+                return;
+
+        if (save_result->partial_failure)
+        {
+                fe_message (_("Could not fully save preferences. zoitechat.conf was written, but colors.conf failed. Retry is possible."), FE_MSG_ERROR);
+                return;
+        }
+
+        g_snprintf (buffer, sizeof (buffer), _("Could not save preferences (%s). Retry is possible."), save_result->failed_file ? save_result->failed_file : _("unknown file"));
+        fe_message (buffer, FE_MSG_ERROR);
+}
+
+static gboolean
+mg_config_save_timeout_cb (gpointer userdata)
+{
+        PreferencesPersistenceResult save_result;
+
+        mg_config_save_source_id = 0;
+
+        if (!mg_config_prefs_dirty)
+                return G_SOURCE_REMOVE;
+
+        save_result = preferences_persistence_save_all ();
+        if (!save_result.success)
+                mg_show_save_failure (&save_result);
+        mg_config_prefs_dirty = FALSE;
+
+        return G_SOURCE_REMOVE;
+}
+
+static void
+mg_schedule_config_save (void)
+{
+        if (!mg_config_prefs_dirty)
+                return;
+
+        if (mg_config_save_source_id != 0)
+                g_source_remove (mg_config_save_source_id);
+
+        mg_config_save_source_id = g_timeout_add (MG_CONFIG_SAVE_DEBOUNCE_MS,
+                                                                                           mg_config_save_timeout_cb,
+                                                                                           NULL);
+}
+
+static void
+mg_flush_config_save (void)
+{
+        PreferencesPersistenceResult save_result;
+
+        if (mg_config_save_source_id != 0)
+        {
+                g_source_remove (mg_config_save_source_id);
+                mg_config_save_source_id = 0;
+        }
+
+        if (mg_config_prefs_dirty)
+        {
+                save_result = preferences_persistence_save_all ();
+                if (!save_result.success)
+                        mg_show_save_failure (&save_result);
+                mg_config_prefs_dirty = FALSE;
+        }
+}
+
 static inline void
 mg_set_source_color (cairo_t *cr, const XTextColor *color)
 {
@@ -229,6 +305,34 @@ mg_set_label_alignment_start (GtkWidget *widget)
 {
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
 	gtk_widget_set_valign (widget, GTK_ALIGN_CENTER);
+}
+
+static void
+mg_apply_compact_mode_css (GtkWidget *widget)
+{
+	GtkStyleContext *context;
+	GtkCssProvider *provider;
+
+	if (!widget)
+		return;
+
+	context = gtk_widget_get_style_context (widget);
+	if (!context)
+		return;
+
+	provider = g_object_get_data (G_OBJECT (widget), "mg-mode-css-provider");
+	if (!provider)
+	{
+		provider = gtk_css_provider_new ();
+		g_object_set_data_full (G_OBJECT (widget), "mg-mode-css-provider", provider, g_object_unref);
+	}
+
+	gtk_css_provider_load_from_data (provider,
+		".zoitechat-mode-control { min-height: 11px; padding-top: 0; padding-bottom: 0; }"
+		".zoitechat-mode-control label { padding-top: 0; padding-bottom: 0; }",
+		-1, NULL);
+	gtk_style_context_add_class (context, "zoitechat-mode-control");
+	theme_css_apply_widget_provider (widget, GTK_STYLE_PROVIDER (provider));
 }
 
 static GtkWidget *
@@ -761,6 +865,10 @@ fe_set_title (session *sess)
 static gboolean
 mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata)
 {
+	guint win_state;
+	guint win_fullscreen;
+	gboolean changed = FALSE;
+
 	if ((event->changed_mask & GDK_WINDOW_STATE_ICONIFIED) &&
 		 (event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) &&
 		 prefs.hex_gui_tray_minimize && prefs.hex_gui_tray &&
@@ -769,13 +877,31 @@ mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata
 		tray_toggle_visibility (TRUE);
 	}
 
-        prefs.hex_gui_win_state = 0;
-        if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED)
-                prefs.hex_gui_win_state = 1;
+	win_state = 0;
+	if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED)
+		win_state = 1;
 
-        prefs.hex_gui_win_fullscreen = 0;
-        if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
-                prefs.hex_gui_win_fullscreen = 1;
+	win_fullscreen = 0;
+	if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN)
+		win_fullscreen = 1;
+
+	if (prefs.hex_gui_win_state != win_state)
+	{
+		prefs.hex_gui_win_state = win_state;
+		changed = TRUE;
+	}
+
+	if (prefs.hex_gui_win_fullscreen != win_fullscreen)
+	{
+		prefs.hex_gui_win_fullscreen = win_fullscreen;
+		changed = TRUE;
+	}
+
+	if (changed)
+	{
+		mg_config_prefs_dirty = TRUE;
+		mg_schedule_config_save ();
+	}
 
         menu_set_fullscreen (current_sess->gui, prefs.hex_gui_win_fullscreen);
 
@@ -789,30 +915,87 @@ mg_windowstate_cb (GtkWindow *wid, GdkEventWindowState *event, gpointer userdata
 static gboolean
 mg_configure_cb (GtkWidget *wid, GdkEventConfigure *event, session *sess)
 {
-        if (sess == NULL)                       /* for the main_window */
+        gboolean changed = FALSE;
+
+        if (sess == NULL)
         {
                 if (mg_gui)
                 {
                         if (prefs.hex_gui_win_save && !prefs.hex_gui_win_state && !prefs.hex_gui_win_fullscreen)
                         {
-                                sess = current_sess;
-                                gtk_window_get_position (GTK_WINDOW (wid), &prefs.hex_gui_win_left,
-                                                                                                 &prefs.hex_gui_win_top);
-                                gtk_window_get_size (GTK_WINDOW (wid), &prefs.hex_gui_win_width,
-                                                                                        &prefs.hex_gui_win_height);
+                                int win_left;
+                                int win_top;
+                                int win_width;
+                                int win_height;
+
+                                gtk_window_get_position (GTK_WINDOW (wid), &win_left, &win_top);
+                                gtk_window_get_size (GTK_WINDOW (wid), &win_width, &win_height);
+
+                                if (prefs.hex_gui_win_left != win_left)
+                                {
+                                        prefs.hex_gui_win_left = win_left;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_top != win_top)
+                                {
+                                        prefs.hex_gui_win_top = win_top;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_width != win_width)
+                                {
+                                        prefs.hex_gui_win_width = win_width;
+                                        changed = TRUE;
+                                }
+
+                                if (prefs.hex_gui_win_height != win_height)
+                                {
+                                        prefs.hex_gui_win_height = win_height;
+                                        changed = TRUE;
+                                }
                         }
                 }
         }
-
-        if (sess)
+        else if (sess->type == SESS_DIALOG && prefs.hex_gui_win_save)
         {
-                if (sess->type == SESS_DIALOG && prefs.hex_gui_win_save)
+                int dialog_left;
+                int dialog_top;
+                int dialog_width;
+                int dialog_height;
+
+                gtk_window_get_position (GTK_WINDOW (wid), &dialog_left, &dialog_top);
+                gtk_window_get_size (GTK_WINDOW (wid), &dialog_width, &dialog_height);
+
+                if (prefs.hex_gui_dialog_left != dialog_left)
                 {
-                        gtk_window_get_position (GTK_WINDOW (wid), &prefs.hex_gui_dialog_left,
-                                                                                         &prefs.hex_gui_dialog_top);
-                        gtk_window_get_size (GTK_WINDOW (wid), &prefs.hex_gui_dialog_width,
-                                                                                &prefs.hex_gui_dialog_height);
+                        prefs.hex_gui_dialog_left = dialog_left;
+                        changed = TRUE;
                 }
+
+                if (prefs.hex_gui_dialog_top != dialog_top)
+                {
+                        prefs.hex_gui_dialog_top = dialog_top;
+                        changed = TRUE;
+                }
+
+                if (prefs.hex_gui_dialog_width != dialog_width)
+                {
+                        prefs.hex_gui_dialog_width = dialog_width;
+                        changed = TRUE;
+                }
+
+                if (prefs.hex_gui_dialog_height != dialog_height)
+                {
+                        prefs.hex_gui_dialog_height = dialog_height;
+                        changed = TRUE;
+                }
+        }
+
+        if (changed)
+        {
+                mg_config_prefs_dirty = TRUE;
+                mg_schedule_config_save ();
         }
 
         return FALSE;
@@ -2339,6 +2522,8 @@ mg_tabwindow_kill_cb (GtkWidget *win, gpointer userdata)
         GSList *list, *next;
         session *sess;
 
+        mg_flush_config_save ();
+
         zoitechat_is_quitting = TRUE;
 
         /* see if there's any non-tab windows left */
@@ -2559,8 +2744,10 @@ mg_create_flagbutton (char *tip, GtkWidget *box, char *face)
         gtk_label_set_markup (GTK_LABEL(lbl), label_markup);
 
         btn = gtk_toggle_button_new ();
-        gtk_widget_set_size_request (btn, -1, 0);
+        gtk_widget_set_size_request (btn, -1, 11);
         gtk_widget_set_tooltip_text (btn, tip);
+        gtk_button_set_relief (GTK_BUTTON (btn), GTK_RELIEF_NONE);
+        mg_apply_compact_mode_css (btn);
         gtk_container_add (GTK_CONTAINER(btn), lbl);
 
         gtk_box_pack_start (GTK_BOX (box), btn, 0, 0, 0);
@@ -2644,12 +2831,13 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         gui->key_entry = gtk_entry_new ();
         gtk_widget_set_name (gui->key_entry, "zoitechat-inputbox");
         gtk_entry_set_max_length (GTK_ENTRY (gui->key_entry), 23);
-        gtk_widget_set_size_request (gui->key_entry, 115, -1);
+        gtk_widget_set_size_request (gui->key_entry, 115, 11);
         gtk_box_pack_start (GTK_BOX (box), gui->key_entry, 0, 0, 0);
         mg_apply_emoji_fallback_widget (gui->key_entry);
+        mg_apply_compact_mode_css (gui->key_entry);
         g_signal_connect (G_OBJECT (gui->key_entry), "activate",
                                                         G_CALLBACK (mg_key_entry_cb), NULL);
-        g_signal_connect (G_OBJECT (gui->key_entry), "key_press_event",
+        g_signal_connect (G_OBJECT (gui->key_entry), "key-press-event",
                                                         G_CALLBACK (mg_entry_select_all), NULL);
 
         if (prefs.hex_gui_input_style)
@@ -2659,12 +2847,13 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
         gui->limit_entry = gtk_entry_new ();
         gtk_widget_set_name (gui->limit_entry, "zoitechat-inputbox");
         gtk_entry_set_max_length (GTK_ENTRY (gui->limit_entry), 10);
-        gtk_widget_set_size_request (gui->limit_entry, 30, -1);
+        gtk_widget_set_size_request (gui->limit_entry, 30, 11);
         gtk_box_pack_start (GTK_BOX (box), gui->limit_entry, 0, 0, 0);
         mg_apply_emoji_fallback_widget (gui->limit_entry);
+        mg_apply_compact_mode_css (gui->limit_entry);
         g_signal_connect (G_OBJECT (gui->limit_entry), "activate",
                                                         G_CALLBACK (mg_limit_entry_cb), NULL);
-        g_signal_connect (G_OBJECT (gui->limit_entry), "key_press_event",
+        g_signal_connect (G_OBJECT (gui->limit_entry), "key-press-event",
                                                         G_CALLBACK (mg_entry_select_all), NULL);
 
         if (prefs.hex_gui_input_style)
@@ -2747,11 +2936,14 @@ mg_create_dialogbuttons (GtkWidget *box)
 static void
 mg_create_topicbar (session *sess, GtkWidget *box)
 {
-        GtkWidget *hbox, *topic, *bbox;
-        session_gui *gui = sess->gui;
+	GtkWidget *vbox, *hbox, *mode_hbox, *topic, *bbox;
+	session_gui *gui = sess->gui;
 
-        gui->topic_bar = hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (box), hbox, 0, 0, 0);
+	gui->topic_bar = vbox = mg_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (box), vbox, 0, 0, 0);
+
+	hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (vbox), hbox, 0, 0, 0);
 
         if (!gui->is_tab)
                 sess->res->tab = NULL;
@@ -2774,13 +2966,16 @@ mg_create_topicbar (session *sess, GtkWidget *box)
         g_signal_connect (G_OBJECT (topic), "leave-notify-event",
                                                         G_CALLBACK (mg_topic_leave_cb), NULL);
 
-        gui->topicbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
-        mg_create_chanmodebuttons (gui, bbox);
+	gui->dialogbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
+	mg_create_dialogbuttons (bbox);
 
-        gui->dialogbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
-        gtk_box_pack_start (GTK_BOX (hbox), bbox, 0, 0, 0);
-        mg_create_dialogbuttons (bbox);
+	mode_hbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX (vbox), mode_hbox, 0, 0, 0);
+
+	gui->topicbutton_box = bbox = mg_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 0);
+	gtk_box_pack_end (GTK_BOX (mode_hbox), bbox, 0, 0, 0);
+	mg_create_chanmodebuttons (gui, bbox);
 }
 
 /* check if a word is clickable */
@@ -2956,18 +3151,18 @@ mg_create_textarea (session *sess, GtkWidget *box)
 
         gtk_drag_dest_set (gui->vscrollbar, 5, dnd_dest_targets, 2,
                                                          GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK);
-        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag_begin",
+        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag-begin",
                                                         G_CALLBACK (mg_drag_begin_cb), NULL);
-        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag_drop",
+        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag-drop",
                                                         G_CALLBACK (mg_drag_drop_cb), NULL);
-        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag_motion",
+        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag-motion",
                                                         G_CALLBACK (mg_drag_motion_cb), gui->vscrollbar);
-        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag_end",
+        g_signal_connect (G_OBJECT (gui->vscrollbar), "drag-end",
                                                         G_CALLBACK (mg_drag_end_cb), NULL);
 
         gtk_drag_dest_set (gui->xtext, GTK_DEST_DEFAULT_ALL, dnd_targets, 1,
                                                          GDK_ACTION_MOVE | GDK_ACTION_COPY | GDK_ACTION_LINK);
-        g_signal_connect (G_OBJECT (gui->xtext), "drag_data_received",
+        g_signal_connect (G_OBJECT (gui->xtext), "drag-data-received",
                                                         G_CALLBACK (mg_dialog_dnd_drop), NULL);
 }
 
@@ -3133,19 +3328,16 @@ mg_theme_window_destroy_cb (GtkWidget *widget, gpointer userdata)
 static void
 mg_create_userlist (session_gui *gui, GtkWidget *box)
 {
-        GtkWidget *frame, *ulist, *vbox;
+        GtkWidget *ulist, *vbox;
 
         vbox = mg_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 1);
         gtk_box_pack_start (GTK_BOX (box), vbox, TRUE, TRUE, 0);
 
-        frame = gtk_frame_new (NULL);
-        if (prefs.hex_gui_ulist_count)
-                gtk_box_pack_start (GTK_BOX (vbox), frame, 0, 0, GUI_SPACING);
-
         gui->namelistinfo = gtk_label_new (NULL);
         gtk_label_set_xalign (GTK_LABEL (gui->namelistinfo), 0.0f);
         gtk_widget_set_halign (gui->namelistinfo, GTK_ALIGN_START);
-        gtk_container_add (GTK_CONTAINER (frame), gui->namelistinfo);
+        if (prefs.hex_gui_ulist_count)
+                gtk_box_pack_start (GTK_BOX (vbox), gui->namelistinfo, 0, 0, 0);
 
         gui->user_tree = ulist = userlist_create (vbox);
 
@@ -3683,7 +3875,8 @@ static void
 search_set_option (GtkToggleButton *but, guint *pref)
 {
         *pref = gtk_toggle_button_get_active(but);
-        save_config();
+        if (!save_config ())
+                fe_message (_("Could not save zoitechat.conf."), FE_MSG_WARN);
 }
 
 void
@@ -3739,7 +3932,7 @@ mg_create_search(session *sess, GtkWidget *box)
         gtk_widget_set_size_request (gui->shentry, 180, -1);
         mg_apply_emoji_fallback_widget (entry);
         gui->search_changed_signal = g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(search_handle_change), sess);
-        g_signal_connect (G_OBJECT (entry), "key_press_event", G_CALLBACK (search_handle_esc), sess);
+        g_signal_connect (G_OBJECT (entry), "key-press-event", G_CALLBACK (search_handle_esc), sess);
         g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(mg_search_handle_next), sess);
         gtk_entry_set_icon_activatable (GTK_ENTRY (entry), GTK_ENTRY_ICON_SECONDARY, FALSE);
         gtk_entry_set_icon_tooltip_text (GTK_ENTRY (sess->gui->shentry), GTK_ENTRY_ICON_SECONDARY, _("Search hit end or not found."));
@@ -3821,11 +4014,11 @@ mg_create_entry (session *sess, GtkWidget *box)
         gtk_box_pack_start (GTK_BOX (hbox), entry, TRUE, TRUE, 0);
 
         gtk_widget_set_name (entry, "zoitechat-inputbox");
-        g_signal_connect (G_OBJECT (entry), "key_press_event",
+        g_signal_connect (G_OBJECT (entry), "key-press-event",
                                                         G_CALLBACK (key_handle_key_press), NULL);
-        g_signal_connect (G_OBJECT (entry), "focus_in_event",
+        g_signal_connect (G_OBJECT (entry), "focus-in-event",
                                                         G_CALLBACK (mg_inputbox_focus), gui);
-        g_signal_connect (G_OBJECT (entry), "populate_popup",
+        g_signal_connect (G_OBJECT (entry), "populate-popup",
                                                         G_CALLBACK (mg_inputbox_rightclick), NULL);
         g_signal_connect (G_OBJECT (entry), "word-check",
                                                         G_CALLBACK (mg_spellcheck_cb), NULL);
@@ -3988,11 +4181,11 @@ mg_create_topwindow (session *sess)
         gtk_container_set_border_width (GTK_CONTAINER (win), GUI_BORDER);
         gtk_widget_set_opacity (win, (prefs.hex_gui_transparency / 255.));
 
-        g_signal_connect (G_OBJECT (win), "focus_in_event",
+        g_signal_connect (G_OBJECT (win), "focus-in-event",
                                                         G_CALLBACK (mg_topwin_focus_cb), sess);
         g_signal_connect (G_OBJECT (win), "destroy",
                                                         G_CALLBACK (mg_topdestroy_cb), sess);
-        g_signal_connect (G_OBJECT (win), "configure_event",
+        g_signal_connect (G_OBJECT (win), "configure-event",
                                                         G_CALLBACK (mg_configure_cb), sess);
 
 
@@ -4178,15 +4371,15 @@ mg_create_tabwindow (session *sess)
         gtk_widget_set_opacity (win, (prefs.hex_gui_transparency / 255.));
         gtk_container_set_border_width (GTK_CONTAINER (win), GUI_BORDER);
 
-        g_signal_connect (G_OBJECT (win), "delete_event",
+        g_signal_connect (G_OBJECT (win), "delete-event",
                                                    G_CALLBACK (mg_tabwindow_de_cb), 0);
         g_signal_connect (G_OBJECT (win), "destroy",
                                                    G_CALLBACK (mg_tabwindow_kill_cb), 0);
-        g_signal_connect (G_OBJECT (win), "focus_in_event",
+        g_signal_connect (G_OBJECT (win), "focus-in-event",
                                                         G_CALLBACK (mg_tabwin_focus_cb), NULL);
-        g_signal_connect (G_OBJECT (win), "configure_event",
+        g_signal_connect (G_OBJECT (win), "configure-event",
                                                         G_CALLBACK (mg_configure_cb), NULL);
-        g_signal_connect (G_OBJECT (win), "window_state_event",
+        g_signal_connect (G_OBJECT (win), "window-state-event",
                                                         G_CALLBACK (mg_windowstate_cb), NULL);
 
 

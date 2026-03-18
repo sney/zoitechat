@@ -581,6 +581,19 @@ fe_exit (void)
 	g_main_loop_quit(main_loop);
 }
 
+fe_preferences_save_result
+fe_preferences_persistence_save_all (void)
+{
+	fe_preferences_save_result result;
+
+	result.success = save_config () != 0;
+	result.partial_failure = FALSE;
+	result.config_failed = !result.success;
+	result.theme_failed = FALSE;
+
+	return result;
+}
+
 void
 fe_new_server (struct server *serv)
 {
