@@ -339,7 +339,7 @@ begin
 	if not IsTaskSelected('portable') then
 	begin
 
-		REDIST := 'https://github.com/zoitechat/gvsbuild/releases/download/zoitechat-2.16.2/vcredist_2015_x64.exe';
+		REDIST := 'https://github.com/ZoiteChat/gvsbuild/releases/download/zoitechat-2.18.0-pre4/vc_redist.x64.exe';
 		PERL := 'https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54201_64bit/strawberry-perl-5.42.0.1-64bit.msi';
 		PY3 := 'https://www.python.org/ftp/python/3.14.3/python-3.14.3-amd64.exe';
 		SPELL := 'https://github.com/zoitechat/gvsbuild/releases/download/zoitechat-2.16.2/ZoiteChat.Spelling.Dictionaries.r2.exe';
