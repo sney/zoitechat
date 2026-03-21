@@ -2803,6 +2803,43 @@ mg_apply_entry_style (GtkWidget *entry)
 	theme_manager_apply_entry_palette (entry, input_style->font_desc);
 }
 
+static void
+mg_apply_entry_scroll_artifact_fix (GtkWidget *entry)
+{
+	GtkStyleContext *context;
+	GtkCssProvider *provider;
+
+	if (!entry || !GTK_IS_ENTRY (entry))
+		return;
+
+	context = gtk_widget_get_style_context (entry);
+	if (!context)
+		return;
+
+	provider = g_object_get_data (G_OBJECT (entry), "mg-entry-scroll-artifact-provider");
+	if (!provider)
+	{
+		provider = gtk_css_provider_new ();
+		g_object_set_data_full (G_OBJECT (entry), "mg-entry-scroll-artifact-provider", provider, g_object_unref);
+		gtk_css_provider_load_from_data (provider,
+			"entry.zoitechat-no-undershoot undershoot,\n"
+			"entry.zoitechat-no-undershoot undershoot.left,\n"
+			"entry.zoitechat-no-undershoot undershoot.right,\n"
+			".zoitechat-no-undershoot undershoot,\n"
+			".zoitechat-no-undershoot undershoot.left,\n"
+			".zoitechat-no-undershoot undershoot.right {\n"
+			"  background-image: none;\n"
+			"  background-color: transparent;\n"
+			"  border: none;\n"
+			"  box-shadow: none;\n"
+			"}\n",
+			-1, NULL);
+	}
+
+	gtk_style_context_add_class (context, "zoitechat-no-undershoot");
+	theme_css_apply_widget_provider (entry, GTK_STYLE_PROVIDER (provider));
+}
+
 static gboolean
 mg_entry_select_all (GtkWidget *entry, GdkEventKey *event, gpointer userdata)
 {
@@ -2842,6 +2879,7 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (gui->key_entry);
+        mg_apply_entry_scroll_artifact_fix (gui->key_entry);
 
         gui->flag_l = mg_create_flagbutton (_("User Limit"), box, "l");
         gui->limit_entry = gtk_entry_new ();
@@ -2858,6 +2896,7 @@ mg_create_chanmodebuttons (session_gui *gui, GtkWidget *box)
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (gui->limit_entry);
+        mg_apply_entry_scroll_artifact_fix (gui->limit_entry);
 }
 
 /*static void
@@ -3955,6 +3994,7 @@ mg_create_search(session *sess, GtkWidget *box)
         gtk_box_pack_start(GTK_BOX(gui->shbox), entry, FALSE, FALSE, 0);
         gtk_widget_set_size_request (gui->shentry, 180, -1);
         mg_apply_emoji_fallback_widget (entry);
+        mg_apply_entry_scroll_artifact_fix (entry);
         gui->search_changed_signal = g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(search_handle_change), sess);
         g_signal_connect (G_OBJECT (entry), "key-press-event", G_CALLBACK (search_handle_esc), sess);
         g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(mg_search_handle_next), sess);
@@ -4050,6 +4090,7 @@ mg_create_entry (session *sess, GtkWidget *box)
 
         if (prefs.hex_gui_input_style)
                 mg_apply_entry_style (entry);
+        mg_apply_entry_scroll_artifact_fix (entry);
 
         g_object_set (G_OBJECT (entry), "show-emoji-icon", TRUE, NULL);
 
