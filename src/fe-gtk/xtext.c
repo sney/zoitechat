@@ -2640,6 +2640,11 @@ gtk_xtext_button_press (GtkWidget * widget, GdkEventButton * event)
 	xtext->select_start_x = x;
 	xtext->select_start_y = y;
 	xtext->select_start_adj = xtext_adj_get_value (xtext->adj);
+	if (xtext->buffer->last_ent_start)
+	{
+		gtk_xtext_unselect (xtext);
+		xtext->mark_stamp = FALSE;
+	}
 
 	return FALSE;
 }
