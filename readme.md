@@ -44,6 +44,7 @@ For more information on ZoiteChat please read our [documentation](https://docs.z
 <sub>
 X-Chat ("xchat") Copyright (c) 1998-2010 By Peter Zelezny.  
 HexChat ("hexchat") Copyright (c) 2009-2014 By Berke Viktor.
+Hexchat ("hexchat") Copyright (c) 2015-2025 By Patrick Griffis.
 ZoiteChat ("zoitechat") Copyright (c) 2026 By deepend. 
 </sub>
 
