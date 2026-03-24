@@ -1963,9 +1963,15 @@ menu_about (GtkWidget *wid, gpointer sess)
 	gtk_about_dialog_set_logo (dialog, pix_zoitechat);
 	gtk_about_dialog_set_copyright (dialog, "\302\251 1998-2010 Peter \305\275elezn\303\275\n\302\251 2009-2014 Berke Viktor\n\302\251 2015-2025 Patrick Griffis\n\302\251 2026 deepend");
 	gtk_about_dialog_set_comments (dialog, comment);
-	website = gtk_dialog_add_button (GTK_DIALOG (dialog), "Website", GTK_RESPONSE_HELP);
-	license = gtk_dialog_add_button (GTK_DIALOG (dialog), "License", GTK_RESPONSE_APPLY);
-	close = gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Close"), GTK_RESPONSE_CLOSE);
+	website = gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog), GTK_RESPONSE_HELP);
+	if (!website)
+		website = gtk_dialog_add_button (GTK_DIALOG (dialog), "Website", GTK_RESPONSE_HELP);
+	license = gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog), GTK_RESPONSE_APPLY);
+	if (!license)
+		license = gtk_dialog_add_button (GTK_DIALOG (dialog), "License", GTK_RESPONSE_APPLY);
+	close = gtk_dialog_get_widget_for_response (GTK_DIALOG (dialog), GTK_RESPONSE_CLOSE);
+	if (!close)
+		close = gtk_dialog_add_button (GTK_DIALOG (dialog), _("_Close"), GTK_RESPONSE_CLOSE);
 	actions = gtk_widget_get_parent (website);
 	gtk_button_box_set_child_secondary (GTK_BUTTON_BOX (actions), website, TRUE);
 	gtk_button_box_set_child_secondary (GTK_BUTTON_BOX (actions), license, TRUE);
