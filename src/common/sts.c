@@ -305,6 +305,7 @@ sts_parse_value (const char *value, guint16 *port, guint64 *duration, gboolean *
 {
 	char **tokens;
 	gsize i;
+	char *end;
 
 	if (!value || !*value)
 	{
@@ -349,8 +350,9 @@ sts_parse_value (const char *value, guint16 *port, guint64 *duration, gboolean *
 				continue;
 			}
 
-			port_value = g_ascii_strtoll (val, NULL, 10);
-			if (port_value > 0 && port_value <= G_MAXUINT16)
+			end = NULL;
+			port_value = g_ascii_strtoll (val, &end, 10);
+			if (end && *end == '\0' && port_value > 0 && port_value <= G_MAXUINT16)
 			{
 				*port = (guint16) port_value;
 				*has_port = TRUE;
@@ -371,7 +373,12 @@ sts_parse_value (const char *value, guint16 *port, guint64 *duration, gboolean *
 				continue;
 			}
 
-			duration_value = g_ascii_strtoull (val, NULL, 10);
+			end = NULL;
+			duration_value = g_ascii_strtoull (val, &end, 10);
+			if (!end || *end != '\0')
+			{
+				continue;
+			}
 			*duration = duration_value;
 			*has_duration = TRUE;
 		}
@@ -612,7 +619,7 @@ sts_handle_capability (struct server *serv, const char *value)
 	{
 		time_t now = time (NULL);
 		time_t expires_at = now + (time_t) duration;
-		guint16 effective_port = 0;
+		guint16 effective_port = (guint16) serv->port;
 		sts_profile *existing_profile;
 		sts_profile *profile;
 
