@@ -1406,55 +1406,20 @@ theme_preferences_gtk3_changed_cb (GtkComboBox *combo, gpointer user_data)
 static GdkPixbuf *
 theme_preferences_load_thumbnail (const char *path)
 {
-	char *data = NULL;
-	gsize length = 0;
-	GdkPixbufLoader *loader;
 	GError *error = NULL;
 	GdkPixbuf *pixbuf;
-	GdkPixbuf *scaled;
-	int width;
-	int height;
 
-	if (!path || !g_file_get_contents (path, &data, &length, &error))
-	{
-		g_clear_error (&error);
+	if (!path)
 		return NULL;
-	}
 
-	loader = gdk_pixbuf_loader_new ();
-	if (!gdk_pixbuf_loader_write (loader, (const guchar *) data, length, &error))
-	{
-		g_clear_error (&error);
-		g_object_unref (loader);
-		g_free (data);
-		return NULL;
-	}
-
-	g_free (data);
-
-	if (!gdk_pixbuf_loader_close (loader, &error))
-	{
-		g_clear_error (&error);
-		g_object_unref (loader);
-		return NULL;
-	}
-
-	pixbuf = gdk_pixbuf_loader_get_pixbuf (loader);
+	pixbuf = gdk_pixbuf_new_from_file_at_scale (path, 48, 48, TRUE, &error);
 	if (!pixbuf)
 	{
-		g_object_unref (loader);
+		g_clear_error (&error);
 		return NULL;
 	}
 
-	width = gdk_pixbuf_get_width (pixbuf);
-	height = gdk_pixbuf_get_height (pixbuf);
-	if (width > 48 || height > 48)
-		scaled = gdk_pixbuf_scale_simple (pixbuf, 48, 48, GDK_INTERP_BILINEAR);
-	else
-		scaled = gdk_pixbuf_copy (pixbuf);
-
-	g_object_unref (loader);
-	return scaled;
+	return pixbuf;
 }
 
 static int
