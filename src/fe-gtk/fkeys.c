@@ -1888,6 +1888,20 @@ key_action_put_history (GtkWidget * wid, GdkEventKey * ent, char *d1,
 	return 2;
 }
 
+static gboolean
+replace_set_pos_idle (gpointer data)
+{
+	GtkWidget *t = GTK_WIDGET (data);
+	gpointer pos_data = g_object_get_data (G_OBJECT (t), "zoitechat-replace-pos");
+
+	if (pos_data)
+		SPELL_ENTRY_SET_POS (t, GPOINTER_TO_INT (pos_data));
+
+	g_object_set_data (G_OBJECT (t), "zoitechat-replace-pos", NULL);
+	g_object_unref (t);
+	return G_SOURCE_REMOVE;
+}
+
 static void
 replace_handle (GtkWidget *t)
 {
@@ -1903,11 +1917,12 @@ replace_handle (GtkWidget *t)
 	size_t match_len;
 	ptrdiff_t cursor_byte_offset;
 	ptrdiff_t match_start_offset;
-	ptrdiff_t match_end_offset;
 	ptrdiff_t new_cursor_offset;
 	const char *best_match;
 	size_t best_len;
 	struct popup *best_pop;
+	int best_rank;
+	ptrdiff_t best_distance;
 
 	text = SPELL_ENTRY_GET_TEXT (t);
 
@@ -1922,19 +1937,50 @@ replace_handle (GtkWidget *t)
 	best_match = NULL;
 	best_len = 0;
 	best_pop = NULL;
+	best_rank = 3;
+	best_distance = 0;
+	cursor_byte_offset = cursor_ptr - text;
 	while (list)
 	{
 		pop = (struct popup *) list->data;
 		if (pop->name[0] != '\0')
 		{
 			size_t pop_len = strlen (pop->name);
-			const char *found = strstr (text, pop->name);
+			const char *found = text;
 
-			if (found && (!best_match || found < best_match))
+			while ((found = strstr (found, pop->name)) != NULL)
 			{
-				best_match = found;
-				best_len = pop_len;
-				best_pop = pop;
+				ptrdiff_t found_offset = found - text;
+				ptrdiff_t found_end_offset = found_offset + (ptrdiff_t) pop_len;
+				int rank;
+				ptrdiff_t distance;
+
+				if (cursor_byte_offset >= found_offset && cursor_byte_offset <= found_end_offset)
+				{
+					rank = 0;
+					distance = found_end_offset - cursor_byte_offset;
+				}
+				else if (found_end_offset <= cursor_byte_offset)
+				{
+					rank = 1;
+					distance = cursor_byte_offset - found_end_offset;
+				}
+				else
+				{
+					rank = 2;
+					distance = found_offset - cursor_byte_offset;
+				}
+
+				if (rank < best_rank || (rank == best_rank && distance < best_distance))
+				{
+					best_rank = rank;
+					best_distance = distance;
+					best_match = found;
+					best_len = pop_len;
+					best_pop = pop;
+				}
+
+				found++;
 			}
 		}
 		list = list->next;
@@ -1952,21 +1998,17 @@ replace_handle (GtkWidget *t)
 		return;
 
 	replacement_len = strlen (pop->cmd);
-	cursor_byte_offset = cursor_ptr - text;
 	match_start_offset = match_start - text;
-	match_end_offset = match_start_offset + (ptrdiff_t) match_len;
-	if (cursor_byte_offset <= match_start_offset)
-		new_cursor_offset = cursor_byte_offset;
-	else if (cursor_byte_offset >= match_end_offset)
-		new_cursor_offset = cursor_byte_offset + ((ptrdiff_t) replacement_len - (ptrdiff_t) match_len);
-	else
-		new_cursor_offset = match_start_offset + (ptrdiff_t) replacement_len;
+	new_cursor_offset = match_start_offset + (ptrdiff_t) replacement_len;
 	buf = g_string_sized_new (strlen (text) + 32);
 	g_string_append_len (buf, text, match_start - text);
 	g_string_append (buf, pop->cmd);
 	g_string_append (buf, match_start + match_len);
 	SPELL_ENTRY_SET_TEXT (t, buf->str);
-	SPELL_ENTRY_SET_POS (t, len_to_offset (buf->str, new_cursor_offset));
+	new_cursor_offset = len_to_offset (buf->str, new_cursor_offset);
+	SPELL_ENTRY_SET_POS (t, new_cursor_offset);
+	g_object_set_data (G_OBJECT (t), "zoitechat-replace-pos", GINT_TO_POINTER ((gint) new_cursor_offset));
+	g_idle_add (replace_set_pos_idle, g_object_ref (t));
 	g_string_free (buf, TRUE);
 }
 
