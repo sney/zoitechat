@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include <gdk/gdkkeysyms.h>
 
@@ -89,6 +90,9 @@ static GtkWidget *edit_label_nick2;
 static GtkWidget *edit_label_real;
 static GtkWidget *edit_label_user;
 static GtkWidget *edit_trees[N_TREES];
+static GtkWidget *edit_button_cert_generate;
+static GtkWidget *edit_button_cert_info;
+static GtkWidget *edit_button_cert_delete;
 
 static ircnet *selected_net = NULL;
 static ircserver *selected_serv = NULL;
@@ -98,6 +102,281 @@ static session *servlist_sess;
 
 static void servlist_network_row_cb (GtkTreeSelection *sel, gpointer user_data);
 static GtkWidget *servlist_open_edit (GtkWidget *parent, ircnet *net);
+
+static char *
+servlist_get_cert_file (ircnet *net)
+{
+	if (!net || !net->name || !net->name[0])
+		return NULL;
+
+	return g_strdup_printf ("%s" G_DIR_SEPARATOR_S "certs" G_DIR_SEPARATOR_S "%s.pem",
+								 get_xdir (), net->name);
+}
+
+static gboolean
+servlist_network_cert_exists (ircnet *net)
+{
+	char *cert_file;
+	gboolean exists;
+
+	cert_file = servlist_get_cert_file (net);
+	if (!cert_file)
+		return FALSE;
+
+	exists = g_file_test (cert_file, G_FILE_TEST_IS_REGULAR);
+	g_free (cert_file);
+	return exists;
+}
+
+static void
+servlist_update_cert_buttons (ircnet *net)
+{
+	gboolean has_cert = servlist_network_cert_exists (net);
+
+	if (edit_button_cert_generate)
+		gtk_widget_set_visible (edit_button_cert_generate, !has_cert);
+	if (edit_button_cert_info)
+		gtk_widget_set_visible (edit_button_cert_info, has_cert);
+	if (edit_button_cert_delete)
+		gtk_widget_set_visible (edit_button_cert_delete, has_cert);
+}
+
+static void
+servlist_generate_client_cert_cb (GtkWidget *button, gpointer userdata)
+{
+#ifdef USE_OPENSSL
+	ircnet *net = (ircnet *)userdata;
+	GtkWidget *dialog;
+	char *cert_dir;
+	char *cert_file;
+	char *key_file;
+	char *crt_file;
+	char *subject;
+	char *openssl_conf;
+	const char *conf_data;
+	char *key_data;
+	char *crt_data;
+	char *pem_data;
+	char *stderr_data;
+	char *stdout_data;
+	gsize key_len;
+	gsize crt_len;
+	gboolean spawned;
+	gboolean success;
+	gint status;
+	char *argv[20];
+
+	if (!net || !net->name || !net->name[0])
+		return;
+
+	cert_dir = g_build_filename (get_xdir (), "certs", NULL);
+	cert_file = servlist_get_cert_file (net);
+	key_file = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s.key", cert_dir, net->name);
+	crt_file = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%s.crt", cert_dir, net->name);
+	subject = g_strdup_printf ("/CN=%s", net->name);
+	openssl_conf = g_build_filename (cert_dir, "openssl.cnf", NULL);
+	conf_data = "[req]\n"
+					"distinguished_name=req_distinguished_name\n"
+					"[req_distinguished_name]\n";
+	key_data = NULL;
+	crt_data = NULL;
+	pem_data = NULL;
+	stderr_data = NULL;
+	stdout_data = NULL;
+	key_len = 0;
+	crt_len = 0;
+	success = FALSE;
+	status = 0;
+
+	if (g_mkdir_with_parents (cert_dir, 0700) == 0 &&
+		 g_file_set_contents (openssl_conf, conf_data, -1, NULL))
+	{
+		argv[0] = "openssl";
+		argv[1] = "req";
+		argv[2] = "-x509";
+		argv[3] = "-newkey";
+		argv[4] = "ec";
+		argv[5] = "-pkeyopt";
+		argv[6] = "ec_paramgen_curve:P-256";
+		argv[7] = "-sha256";
+		argv[8] = "-days";
+		argv[9] = "3650";
+		argv[10] = "-nodes";
+		argv[11] = "-keyout";
+		argv[12] = key_file;
+		argv[13] = "-out";
+		argv[14] = crt_file;
+		argv[15] = "-config";
+		argv[16] = openssl_conf;
+		argv[17] = "-subj";
+		argv[18] = subject;
+		argv[19] = NULL;
+
+		spawned = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
+									 &stdout_data, &stderr_data, &status, NULL);
+		if (spawned && g_spawn_check_exit_status (status, NULL) &&
+			 g_file_get_contents (key_file, &key_data, &key_len, NULL) &&
+			 g_file_get_contents (crt_file, &crt_data, &crt_len, NULL))
+		{
+			pem_data = g_strconcat (key_data, crt_data, NULL);
+			if (pem_data && g_file_set_contents (cert_file, pem_data, -1, NULL))
+			{
+				chmod (cert_file, 0600);
+				success = TRUE;
+			}
+		}
+	}
+
+	g_remove (key_file);
+	g_remove (crt_file);
+	g_remove (openssl_conf);
+
+	if (success)
+	{
+		servlist_update_cert_buttons (net);
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_INFO,
+												 GTK_BUTTONS_CLOSE,
+												 _("Client certificate generated for \"%s\"."),
+												 net->name);
+	}
+	else
+	{
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_ERROR,
+												 GTK_BUTTONS_CLOSE,
+												 _("Failed to generate the client certificate for \"%s\"."),
+												 net->name);
+		if (stderr_data && stderr_data[0])
+			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", stderr_data);
+	}
+	theme_manager_attach_window (dialog);
+	g_signal_connect_swapped (dialog, "response", G_CALLBACK (gtk_widget_destroy), dialog);
+	gtk_widget_show (dialog);
+
+	g_free (stdout_data);
+	g_free (stderr_data);
+	g_free (pem_data);
+	g_free (key_data);
+	g_free (crt_data);
+	g_free (subject);
+	g_free (crt_file);
+	g_free (key_file);
+	g_free (openssl_conf);
+	g_free (cert_file);
+	g_free (cert_dir);
+#else
+	return;
+#endif
+}
+
+static void
+servlist_cert_info_cb (GtkWidget *button, gpointer userdata)
+{
+#ifdef USE_OPENSSL
+	ircnet *net = (ircnet *)userdata;
+	GtkWidget *dialog;
+	char *cert_file;
+	char *stdout_data;
+	char *stderr_data;
+	gboolean spawned;
+	gint status;
+	char *argv[12];
+
+	cert_file = servlist_get_cert_file (net);
+	if (!cert_file)
+		return;
+
+	stdout_data = NULL;
+	stderr_data = NULL;
+	status = 0;
+	argv[0] = "openssl";
+	argv[1] = "x509";
+	argv[2] = "-in";
+	argv[3] = cert_file;
+	argv[4] = "-noout";
+	argv[5] = "-subject";
+	argv[6] = "-issuer";
+	argv[7] = "-startdate";
+	argv[8] = "-enddate";
+	argv[9] = "-fingerprint";
+	argv[10] = "-sha256";
+	argv[11] = NULL;
+
+	spawned = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
+								 &stdout_data, &stderr_data, &status, NULL);
+
+	if (spawned && g_spawn_check_exit_status (status, NULL) && stdout_data && stdout_data[0])
+	{
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_INFO,
+												 GTK_BUTTONS_CLOSE,
+												 _("Client certificate information for \"%s\"."),
+												 net->name);
+		gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", stdout_data);
+	}
+	else
+	{
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_ERROR,
+												 GTK_BUTTONS_CLOSE,
+												 _("Failed to read client certificate information for \"%s\"."),
+												 net->name);
+		if (stderr_data && stderr_data[0])
+			gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (dialog), "%s", stderr_data);
+	}
+
+	theme_manager_attach_window (dialog);
+	g_signal_connect_swapped (dialog, "response", G_CALLBACK (gtk_widget_destroy), dialog);
+	gtk_widget_show (dialog);
+	g_free (stdout_data);
+	g_free (stderr_data);
+	g_free (cert_file);
+#else
+	return;
+#endif
+}
+
+static void
+servlist_delete_client_cert_cb (GtkWidget *button, gpointer userdata)
+{
+	ircnet *net = (ircnet *)userdata;
+	GtkWidget *dialog;
+	char *cert_file;
+
+	cert_file = servlist_get_cert_file (net);
+	if (!cert_file)
+		return;
+
+	if (g_remove (cert_file) == 0)
+	{
+		servlist_update_cert_buttons (net);
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_INFO,
+												 GTK_BUTTONS_CLOSE,
+												 _("Client certificate removed for \"%s\"."),
+												 net->name);
+	}
+	else
+	{
+		dialog = gtk_message_dialog_new (GTK_WINDOW (edit_win),
+												 GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL,
+												 GTK_MESSAGE_ERROR,
+												 GTK_BUTTONS_CLOSE,
+												 _("Failed to remove client certificate for \"%s\"."),
+												 net->name);
+	}
+
+	theme_manager_attach_window (dialog);
+	g_signal_connect_swapped (dialog, "response", G_CALLBACK (gtk_widget_destroy), dialog);
+	gtk_widget_show (dialog);
+	g_free (cert_file);
+}
 
 static GtkWidget *
 servlist_icon_button_new (const char *label, const char *icon_name)
@@ -1783,6 +2062,7 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 	GtkWidget *buttonadd;
 	GtkWidget *buttonremove;
 	GtkWidget *buttonedit;
+	GtkWidget *hbox_cert_buttons;
 	GtkWidget *hseparator2;
 	GtkWidget *hbuttonbox4;
 	GtkWidget *button10;
@@ -1947,7 +2227,7 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 
 
 	/* Checkboxes and entries */
-	table3 = gtkutil_grid_new (13, 2, FALSE);
+	table3 = gtkutil_grid_new (14, 2, FALSE);
 	gtk_box_pack_start (GTK_BOX (vbox5), table3, FALSE, FALSE, 0);
 	gtk_grid_set_row_spacing (GTK_GRID (table3), 2);
 	gtk_grid_set_column_spacing (GTK_GRID (table3), 8);
@@ -2002,6 +2282,27 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 						   SERVLIST_ALIGN_FILL, SERVLIST_ALIGN_FILL,
 						   4, 2);
 
+	hbox_cert_buttons = gtkutil_box_new (GTK_ORIENTATION_HORIZONTAL, FALSE, 6);
+	edit_button_cert_generate = gtk_button_new_with_mnemonic (_("Generate client SSL cert"));
+	g_signal_connect (G_OBJECT (edit_button_cert_generate), "clicked",
+							G_CALLBACK (servlist_generate_client_cert_cb), net);
+	gtk_box_pack_start (GTK_BOX (hbox_cert_buttons), edit_button_cert_generate, FALSE, FALSE, 0);
+
+	edit_button_cert_info = gtk_button_new_with_mnemonic (_("Client SSL cert info"));
+	g_signal_connect (G_OBJECT (edit_button_cert_info), "clicked",
+							G_CALLBACK (servlist_cert_info_cb), net);
+	gtk_box_pack_start (GTK_BOX (hbox_cert_buttons), edit_button_cert_info, FALSE, FALSE, 0);
+
+	edit_button_cert_delete = gtk_button_new_with_mnemonic (_("Delete cert"));
+	g_signal_connect (G_OBJECT (edit_button_cert_delete), "clicked",
+							G_CALLBACK (servlist_delete_client_cert_cb), net);
+	gtk_box_pack_start (GTK_BOX (hbox_cert_buttons), edit_button_cert_delete, FALSE, FALSE, 0);
+
+	servlist_table_attach (table3, hbox_cert_buttons, 0, 2, 13, 14,
+						   FALSE, FALSE,
+						   SERVLIST_ALIGN_START, SERVLIST_ALIGN_CENTER,
+						   SERVLIST_X_PADDING, SERVLIST_Y_PADDING);
+
 
 	/* Rule and Close button */
 	hseparator2 = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
@@ -2026,6 +2327,7 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 	gtk_widget_grab_default (button10);
 
 	gtk_widget_show_all (editwindow);
+	servlist_update_cert_buttons (net);
 
 	/* We can't set the active tab without child elements being shown, so this must be *after* gtk_widget_show()s! */
 	gtk_notebook_set_current_page (GTK_NOTEBOOK (notebook), netedit_active_tab);
