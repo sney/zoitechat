@@ -41,7 +41,7 @@ static zoitechat_plugin *ph;
 static char name[] = "Sysinfo";
 static char desc[] = "Display info about your hardware and OS";
 static char version[] = "1.0";
-static char sysinfo_help[] = "SysInfo Usage:\n  /SYSINFO [-e|-o] [CLIENT|UI|OS|CPU|RAM|DISK|VGA|SOUND|ETHERNET|UPTIME], print various details about your system or print a summary without arguments\n  /SYSINFO SET <variable>\n";
+static char sysinfo_help[] = "SysInfo Usage:\n  /SYSINFO [-e|-o] [CLIENT|UI|OS|CPU|RAM|DISK|GPU|CHIPSET|SOUND|ETHERNET|UPTIME], print various details about your system or print a summary without arguments\n  /SYSINFO SET <variable>\n";
 
 typedef struct
 {
@@ -54,16 +54,11 @@ typedef struct
 static char *
 get_client (void)
 {
-	char *ui = sysinfo_backend_get_ui();
-	const char *ver = zoitechat_get_info(ph, "version");
+		const char *ver = zoitechat_get_info(ph, "version");
 	char *out;
 
-	if (ui != NULL && *ui != '\0')
-		out = g_strdup_printf ("ZoiteChat %s (%s)", ver, ui);
-	else
 		out = g_strdup_printf ("ZoiteChat %s", ver);
 
-	g_free (ui);
 	return out;
 }
 
@@ -74,7 +69,8 @@ static hwinfo hwinfos[] = {
 	{"cpu", "CPU", sysinfo_backend_get_cpu},
 	{"memory", "Memory", sysinfo_backend_get_memory},
 	{"storage", "Storage", sysinfo_backend_get_disk},
-	{"vga", "VGA", sysinfo_backend_get_gpu},
+	{"gpu", "GPU", sysinfo_backend_get_gpu},
+	{"chipset", "CHIPSET", sysinfo_backend_get_chipset, TRUE},
 	{"sound", "Sound", sysinfo_backend_get_sound, TRUE},
 	{"ethernet", "Ethernet", sysinfo_backend_get_network, TRUE},
 	{"uptime", "Uptime", sysinfo_backend_get_uptime},
