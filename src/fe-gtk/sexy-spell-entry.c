@@ -136,6 +136,7 @@ static void sexy_spell_entry_finalize(GObject *obj);
 static void sexy_spell_entry_destroy(GObject *obj);
 static gboolean sexy_spell_entry_draw(GtkWidget *widget, cairo_t *cr);
 static gint sexy_spell_entry_button_press(GtkWidget *widget, GdkEventButton *event);
+static void sexy_spell_entry_style_updated (GtkWidget *widget);
 
 /* GtkEditable handlers */
 static void sexy_spell_entry_changed(GtkEditable *editable, gpointer data);
@@ -280,6 +281,7 @@ sexy_spell_entry_class_init(SexySpellEntryClass *klass)
 
 	widget_class->draw = sexy_spell_entry_draw;
 	widget_class->button_press_event = sexy_spell_entry_button_press;
+	widget_class->style_updated = sexy_spell_entry_style_updated;
 
 	/**
 	 * SexySpellEntry::word-check:
@@ -355,6 +357,47 @@ insert_hiddenchar (SexySpellEntry *entry, guint start, guint end)
 	hattr->start_index = start;
 	hattr->end_index = end;
 	pango_attr_list_insert (entry->priv->attr_list, hattr);
+}
+
+static guint8
+sexy_spell_entry_contrasting_caret_component (guint16 red, guint16 green, guint16 blue)
+{
+	const guint16 luma = (guint16) (((red >> 8) * 299 + (green >> 8) * 587 + (blue >> 8) * 114) / 1000);
+	return luma >= 128 ? 0x00 : 0xff;
+}
+
+static void
+sexy_spell_entry_apply_caret_style (SexySpellEntry *entry)
+{
+	ThemeWidgetStyleValues style_values;
+	guint16 bg_red = 0, bg_green = 0, bg_blue = 0;
+	guint8 caret;
+	GtkCssProvider *provider;
+	GtkStyleContext *context;
+	char css[120];
+
+	theme_get_widget_style_values_for_widget (GTK_WIDGET (entry), &style_values);
+	theme_palette_color_get_rgb16 (&style_values.background, &bg_red, &bg_green, &bg_blue);
+	caret = sexy_spell_entry_contrasting_caret_component (bg_red, bg_green, bg_blue);
+	provider = g_object_get_data (G_OBJECT (entry), "sexy-spell-entry-caret-provider");
+	if (!provider)
+	{
+		provider = gtk_css_provider_new ();
+		g_object_set_data_full (G_OBJECT (entry), "sexy-spell-entry-caret-provider", provider, g_object_unref);
+	}
+	g_snprintf (css, sizeof (css), "#zoitechat-inputbox, #zoitechat-inputbox text { caret-color: #%02x%02x%02x; }",
+		caret, caret, caret);
+	gtk_css_provider_load_from_data (provider, css, -1, NULL);
+	context = gtk_widget_get_style_context (GTK_WIDGET (entry));
+	gtk_style_context_add_provider (context, GTK_STYLE_PROVIDER (provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+}
+
+static void
+sexy_spell_entry_style_updated (GtkWidget *widget)
+{
+	GTK_WIDGET_CLASS (parent_class)->style_updated (widget);
+	if (SEXY_IS_SPELL_ENTRY (widget))
+		sexy_spell_entry_apply_caret_style (SEXY_SPELL_ENTRY (widget));
 }
 
 static void
@@ -867,6 +910,7 @@ sexy_spell_entry_init(SexySpellEntry *entry)
 	g_signal_connect(G_OBJECT(entry), "popup-menu", G_CALLBACK(sexy_spell_entry_popup_menu), entry);
 	g_signal_connect(G_OBJECT(entry), "populate-popup", G_CALLBACK(sexy_spell_entry_populate_popup), NULL);
 	g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(sexy_spell_entry_changed), NULL);
+	sexy_spell_entry_apply_caret_style (entry);
 }
 
 static void
