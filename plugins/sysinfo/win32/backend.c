@@ -92,7 +92,7 @@ sysinfo_backend_get_gpu (void)
 char *
 sysinfo_backend_get_chipset (void)
 {
-	return NULL ();
+	return NULL;
 }
 
 char *
