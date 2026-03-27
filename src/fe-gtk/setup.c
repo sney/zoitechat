@@ -88,6 +88,14 @@ typedef struct
         int extra;
 } setting;
 
+typedef GtkWidget *(*setup_page_factory) (const setting *settings);
+
+#define SETUP_MAX_PAGES 12
+static setup_page_factory setup_page_factories[SETUP_MAX_PAGES];
+static const setting *setup_page_settings[SETUP_MAX_PAGES];
+static GtkWidget *setup_page_containers[SETUP_MAX_PAGES];
+static int setup_page_count = 0;
+
 #ifdef WIN32
 static const char *const langsmenu[] =
 {
@@ -1773,6 +1781,26 @@ setup_create_sound_page (void)
         return vbox1;
 }
 
+static GtkWidget *
+setup_page_from_settings (const setting *settings)
+{
+        return setup_create_page (settings);
+}
+
+static GtkWidget *
+setup_page_from_appearance (const setting *settings)
+{
+        (void)settings;
+        return setup_create_appearance_page ();
+}
+
+static GtkWidget *
+setup_page_from_sound (const setting *settings)
+{
+        (void)settings;
+        return setup_create_sound_page ();
+}
+
 static void
 setup_add_page (const char *title, GtkWidget *book, GtkWidget *tab)
 {
@@ -1805,6 +1833,45 @@ setup_add_page (const char *title, GtkWidget *book, GtkWidget *tab)
         gtk_viewport_set_shadow_type (GTK_VIEWPORT(viewport), GTK_SHADOW_NONE);
 
         gtk_notebook_append_page (GTK_NOTEBOOK (book), GTK_WIDGET(sw), NULL);
+}
+
+static void
+setup_register_page (const char *title, GtkWidget *book, setup_page_factory factory, const setting *settings)
+{
+        GtkWidget *container;
+
+        if (setup_page_count >= SETUP_MAX_PAGES)
+                return;
+
+        setup_page_factories[setup_page_count] = factory;
+        setup_page_settings[setup_page_count] = settings;
+        container = gtkutil_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 0);
+        setup_page_containers[setup_page_count] = container;
+        setup_add_page (title, book, container);
+        setup_page_count++;
+}
+
+static void
+setup_ensure_page_created (int page)
+{
+        GList *children;
+        GtkWidget *page_widget;
+        GtkWidget *container;
+
+        if (page < 0 || page >= setup_page_count)
+                return;
+
+        container = setup_page_containers[page];
+        children = gtk_container_get_children (GTK_CONTAINER (container));
+        if (children != NULL)
+        {
+                g_list_free (children);
+                return;
+        }
+
+        page_widget = setup_page_factories[page] (setup_page_settings[page]);
+        gtk_container_add (GTK_CONTAINER (container), page_widget);
+        gtk_widget_show_all (container);
 }
 
 static const char *const cata_interface[] =
@@ -1843,37 +1910,42 @@ setup_create_pages (GtkWidget *box)
         (void)box;
         book = gtk_notebook_new ();
 
-        setup_add_page (cata_interface[0], book, setup_create_appearance_page ());
-        setup_add_page (cata_interface[1], book, setup_create_page (inputbox_settings));
-        setup_add_page (cata_interface[2], book, setup_create_page (userlist_settings));
-        setup_add_page (cata_interface[3], book, setup_create_page (tabs_settings));
+        memset (setup_page_factories, 0, sizeof (setup_page_factories));
+        memset (setup_page_settings, 0, sizeof (setup_page_settings));
+        memset (setup_page_containers, 0, sizeof (setup_page_containers));
+        setup_page_count = 0;
 
-        setup_add_page (cata_chatting[0], book, setup_create_page (general_settings));
+        setup_register_page (cata_interface[0], book, setup_page_from_appearance, NULL);
+        setup_register_page (cata_interface[1], book, setup_page_from_settings, inputbox_settings);
+        setup_register_page (cata_interface[2], book, setup_page_from_settings, userlist_settings);
+        setup_register_page (cata_interface[3], book, setup_page_from_settings, tabs_settings);
+
+        setup_register_page (cata_chatting[0], book, setup_page_from_settings, general_settings);
 
         if (!gtkutil_tray_icon_supported (win) && !notification_backend_supported ())
         {
-                setup_add_page (cata_chatting[1], book, setup_create_page (alert_settings_unityandnonotifications));
+                setup_register_page (cata_chatting[1], book, setup_page_from_settings, alert_settings_unityandnonotifications);
         }
         else if (!gtkutil_tray_icon_supported (win))
         {
-                setup_add_page (cata_chatting[1], book, setup_create_page (alert_settings_unity));
+                setup_register_page (cata_chatting[1], book, setup_page_from_settings, alert_settings_unity);
         }
         else if (!notification_backend_supported ())
         {
-                setup_add_page (cata_chatting[1], book, setup_create_page (alert_settings_nonotifications));
+                setup_register_page (cata_chatting[1], book, setup_page_from_settings, alert_settings_nonotifications);
         }
         else
         {
-                setup_add_page (cata_chatting[1], book, setup_create_page (alert_settings));
+                setup_register_page (cata_chatting[1], book, setup_page_from_settings, alert_settings);
         }
 
-        setup_add_page (cata_chatting[2], book, setup_create_sound_page ());
-        setup_add_page (cata_chatting[3], book, setup_create_page (logging_settings));
-        setup_add_page (cata_chatting[4], book, setup_create_page (advanced_settings));
+        setup_register_page (cata_chatting[2], book, setup_page_from_sound, NULL);
+        setup_register_page (cata_chatting[3], book, setup_page_from_settings, logging_settings);
+        setup_register_page (cata_chatting[4], book, setup_page_from_settings, advanced_settings);
 
-        setup_add_page (cata_network[0], book, setup_create_page (network_settings));
-        setup_add_page (cata_network[1], book, setup_create_page (filexfer_settings));
-        setup_add_page (cata_network[2], book, setup_create_page (identd_settings));
+        setup_register_page (cata_network[0], book, setup_page_from_settings, network_settings);
+        setup_register_page (cata_network[1], book, setup_page_from_settings, filexfer_settings);
+        setup_register_page (cata_network[2], book, setup_page_from_settings, identd_settings);
 
         gtk_notebook_set_show_tabs (GTK_NOTEBOOK (book), FALSE);
         gtk_notebook_set_show_border (GTK_NOTEBOOK (book), FALSE);
@@ -1895,6 +1967,7 @@ setup_tree_cb (GtkTreeView *treeview, GtkWidget *book)
                 gtk_tree_model_get (model, &iter, 1, &page, -1);
                 if (page != -1)
                 {
+                        setup_ensure_page_created (page);
                         gtk_notebook_set_current_page (GTK_NOTEBOOK (book), page);
                         last_selected_page = page;
                 }
@@ -1984,6 +2057,7 @@ setup_create_tree (GtkWidget *box, GtkWidget *book)
         {
                 gtk_tree_selection_select_iter (sel, sel_iter);
                 gtk_tree_iter_free (sel_iter);
+                setup_tree_cb (GTK_TREE_VIEW (tree), book);
         }
 }
 
