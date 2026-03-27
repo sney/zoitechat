@@ -337,6 +337,44 @@ test_unset_theme_keeps_system_default_without_apply (void)
         gtk_widget_destroy (page);
 }
 
+static void
+test_select_none_resets_theme_and_applies (void)
+{
+        GtkWidget *page;
+        theme_preferences_ui *ui;
+        struct zoitechatprefs setup_prefs;
+
+        if (!gtk_available)
+        {
+                g_test_message ("GTK display not available");
+                return;
+        }
+
+        memset (&setup_prefs, 0, sizeof (setup_prefs));
+        memset (&prefs, 0, sizeof (prefs));
+        g_strlcpy (prefs.hex_gui_gtk3_theme, "fallback-theme", sizeof (prefs.hex_gui_gtk3_theme));
+        prefs.hex_gui_gtk3_variant = THEME_GTK3_VARIANT_PREFER_LIGHT;
+        removed_selected = FALSE;
+        apply_current_calls = 0;
+        applied_theme_id[0] = '\0';
+
+        page = theme_preferences_create_page (NULL, &setup_prefs, NULL);
+        ui = g_object_get_data (G_OBJECT (page), "theme-preferences-ui");
+        g_assert_nonnull (ui);
+
+        gtk_combo_box_set_active (GTK_COMBO_BOX (ui->gtk3_combo), 0);
+
+        g_assert_cmpstr (prefs.hex_gui_gtk3_theme, ==, "");
+        g_assert_cmpstr (setup_prefs.hex_gui_gtk3_theme, ==, "");
+        g_assert_cmpint (prefs.hex_gui_gtk3_variant, ==, THEME_GTK3_VARIANT_FOLLOW_SYSTEM);
+        g_assert_cmpint (setup_prefs.hex_gui_gtk3_variant, ==, THEME_GTK3_VARIANT_FOLLOW_SYSTEM);
+        g_assert_cmpint (apply_current_calls, ==, 1);
+        g_assert_cmpstr (applied_theme_id, ==, "");
+        g_assert_cmpint (applied_variant, ==, THEME_GTK3_VARIANT_FOLLOW_SYSTEM);
+
+        gtk_widget_destroy (page);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -346,5 +384,7 @@ main (int argc, char **argv)
                          test_removed_selected_theme_commits_fallback_and_applies);
         g_test_add_func ("/theme/preferences/gtk3_unset_keeps_system_default",
                          test_unset_theme_keeps_system_default_without_apply);
+        g_test_add_func ("/theme/preferences/gtk3_select_none_resets_theme",
+                         test_select_none_resets_theme_and_applies);
         return g_test_run ();
 }

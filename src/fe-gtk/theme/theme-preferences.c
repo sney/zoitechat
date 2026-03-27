@@ -1380,7 +1380,10 @@ theme_preferences_gtk3_changed_cb (GtkComboBox *combo, gpointer user_data)
         if (!id)
                 return;
 
-        variant = theme_gtk3_variant_for_theme (id);
+        if (id[0] == '\0')
+                variant = THEME_GTK3_VARIANT_FOLLOW_SYSTEM;
+        else
+                variant = theme_gtk3_variant_for_theme (id);
         selection_changed = g_strcmp0 (prefs.hex_gui_gtk3_theme, id) != 0
                             || prefs.hex_gui_gtk3_variant != variant;
         g_strlcpy (prefs.hex_gui_gtk3_theme, id, sizeof (prefs.hex_gui_gtk3_theme));
@@ -1402,40 +1405,6 @@ theme_preferences_gtk3_changed_cb (GtkComboBox *combo, gpointer user_data)
         g_free (id);
 }
 
-static int
-theme_preferences_gtk3_find_system_theme_index (GPtrArray *themes)
-{
-        GtkSettings *settings;
-        char *system_theme = NULL;
-        guint i;
-        int found = -1;
-
-        settings = gtk_settings_get_default ();
-        if (!settings || !themes)
-                return -1;
-
-        g_object_get (G_OBJECT (settings), "gtk-theme-name", &system_theme, NULL);
-        if (!system_theme || system_theme[0] == '\0')
-        {
-                g_free (system_theme);
-                return -1;
-        }
-
-        for (i = 0; i < themes->len; i++)
-        {
-                ZoitechatGtk3Theme *theme = g_ptr_array_index (themes, i);
-
-                if (theme && g_strcmp0 (theme->id, system_theme) == 0)
-                {
-                        found = (int) i;
-                        break;
-                }
-        }
-
-        g_free (system_theme);
-        return found;
-}
-
 static void
 theme_preferences_populate_gtk3 (theme_preferences_ui *ui)
 {
@@ -1454,6 +1423,12 @@ theme_preferences_populate_gtk3 (theme_preferences_ui *ui)
         store = GTK_TREE_STORE (gtk_combo_box_get_model (GTK_COMBO_BOX (ui->gtk3_combo)));
         ui->gtk3_populating = TRUE;
         gtk_tree_store_clear (store);
+        gtk_tree_store_append (store, &iter, NULL);
+        gtk_tree_store_set (store, &iter,
+                            GTK3_THEME_COL_ID, "",
+                            GTK3_THEME_COL_LABEL, _("None"),
+                            GTK3_THEME_COL_SOURCE, ZOITECHAT_GTK3_THEME_SOURCE_SYSTEM,
+                            -1);
         themes = zoitechat_gtk3_theme_service_discover ();
         for (i = 0; i < themes->len; i++)
         {
@@ -1468,29 +1443,30 @@ theme_preferences_populate_gtk3 (theme_preferences_ui *ui)
                                     GTK3_THEME_COL_SOURCE, theme->source,
                                     -1);
                 if (g_strcmp0 (prefs.hex_gui_gtk3_theme, theme->id) == 0)
-                        active = i;
+                        active = (int)i + 1;
                 g_free (label);
         }
         if (active < 0 && using_system_default)
-                active = theme_preferences_gtk3_find_system_theme_index (themes);
+                active = 0;
         if (active >= 0)
                 gtk_combo_box_set_active (GTK_COMBO_BOX (ui->gtk3_combo), active);
-        else if (themes->len > 0)
+        else
         {
                 gtk_combo_box_set_active (GTK_COMBO_BOX (ui->gtk3_combo), 0);
                 if (!using_system_default)
                         removed_selected_theme = TRUE;
         }
-        else if (prefs.hex_gui_gtk3_theme[0] != '\0')
-                removed_selected_theme = TRUE;
-        gtk_widget_set_sensitive (ui->gtk3_combo, themes->len > 0);
+        gtk_widget_set_sensitive (ui->gtk3_combo, TRUE);
         theme_preferences_gtk3_sync_remove_state (ui);
         ui->gtk3_populating = FALSE;
 
         final_id = theme_preferences_gtk3_active_id (ui);
         if (final_id)
         {
-                final_variant = theme_gtk3_variant_for_theme (final_id);
+                if (final_id[0] == '\0')
+                        final_variant = THEME_GTK3_VARIANT_FOLLOW_SYSTEM;
+                else
+                        final_variant = theme_gtk3_variant_for_theme (final_id);
                 if (!using_system_default || removed_selected_theme)
                 {
                         should_apply = g_strcmp0 (prefs.hex_gui_gtk3_theme, final_id) != 0
