@@ -41,7 +41,7 @@ static zoitechat_plugin *ph;
 static char name[] = "Sysinfo";
 static char desc[] = "Display info about your hardware and OS";
 static char version[] = "1.0";
-static char sysinfo_help[] = "SysInfo Usage:\n  /SYSINFO [-e|-o] [CLIENT|UI|OS|CPU|RAM|DISK|GPU|CHIPSET|SOUND|ETHERNET|UPTIME], print various details about your system or print a summary without arguments\n  /SYSINFO SET <variable>\n";
+static char sysinfo_help[] = "SysInfo Usage:\n  /SYSINFO [-e|-o] [CLIENT|UI|OS|CPU|RAM|STORAGE|GPU|CHIPSET|SOUND|ETHERNET|UPTIME], print various details about your system or print a summary without arguments\n  /SYSINFO SET <variable>\n";
 
 typedef struct
 {
@@ -68,7 +68,7 @@ static hwinfo hwinfos[] = {
 	{"os", "OS", sysinfo_backend_get_os},
 	{"cpu", "CPU", sysinfo_backend_get_cpu},
 	{"memory", "Memory", sysinfo_backend_get_memory},
-	{"storage", "Storage", sysinfo_backend_get_disk},
+	{"storage", "Storage", sysinfo_backend_get_disk, TRUE},
 	{"gpu", "GPU", sysinfo_backend_get_gpu},
 	{"chipset", "CHIPSET", sysinfo_backend_get_chipset, TRUE},
 	{"sound", "Sound", sysinfo_backend_get_sound, TRUE},
