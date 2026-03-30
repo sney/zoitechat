@@ -252,6 +252,7 @@ servlist_generate_client_cert_cb (GtkWidget *button, gpointer userdata)
 	gboolean success;
 	gint status;
 	char *argv[20];
+	char **envp;
 
 	if (!net || !net->name || !net->name[0])
 		return;
@@ -274,6 +275,7 @@ servlist_generate_client_cert_cb (GtkWidget *button, gpointer userdata)
 	crt_len = 0;
 	success = FALSE;
 	status = 0;
+	envp = g_environ_unsetenv (g_get_environ (), "LD_LIBRARY_PATH");
 
 	if (g_mkdir_with_parents (cert_dir, 0700) == 0 &&
 		 g_file_set_contents (openssl_conf, conf_data, -1, NULL))
@@ -299,7 +301,7 @@ servlist_generate_client_cert_cb (GtkWidget *button, gpointer userdata)
 		argv[18] = subject;
 		argv[19] = NULL;
 
-		spawned = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
+		spawned = g_spawn_sync (NULL, argv, envp, G_SPAWN_SEARCH_PATH, NULL, NULL,
 									 &stdout_data, &stderr_data, &status, NULL);
 		if (spawned && g_spawn_check_exit_status (status, NULL) &&
 			 g_file_get_contents (key_file, &key_data, &key_len, NULL) &&
@@ -354,6 +356,7 @@ servlist_generate_client_cert_cb (GtkWidget *button, gpointer userdata)
 	g_free (openssl_conf);
 	g_free (cert_file);
 	g_free (cert_dir);
+	g_strfreev (envp);
 #else
 	return;
 #endif
@@ -371,6 +374,7 @@ servlist_cert_info_cb (GtkWidget *button, gpointer userdata)
 	gboolean spawned;
 	gint status;
 	char *argv[12];
+	char **envp;
 
 	cert_file = servlist_get_cert_file (net);
 	if (!cert_file)
@@ -379,6 +383,7 @@ servlist_cert_info_cb (GtkWidget *button, gpointer userdata)
 	stdout_data = NULL;
 	stderr_data = NULL;
 	status = 0;
+	envp = g_environ_unsetenv (g_get_environ (), "LD_LIBRARY_PATH");
 	argv[0] = "openssl";
 	argv[1] = "x509";
 	argv[2] = "-in";
@@ -392,7 +397,7 @@ servlist_cert_info_cb (GtkWidget *button, gpointer userdata)
 	argv[10] = "-sha256";
 	argv[11] = NULL;
 
-	spawned = g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL,
+	spawned = g_spawn_sync (NULL, argv, envp, G_SPAWN_SEARCH_PATH, NULL, NULL,
 								 &stdout_data, &stderr_data, &status, NULL);
 
 	if (spawned && g_spawn_check_exit_status (status, NULL) && stdout_data && stdout_data[0])
@@ -423,6 +428,7 @@ servlist_cert_info_cb (GtkWidget *button, gpointer userdata)
 	g_free (stdout_data);
 	g_free (stderr_data);
 	g_free (cert_file);
+	g_strfreev (envp);
 #else
 	return;
 #endif
