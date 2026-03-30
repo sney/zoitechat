@@ -2999,6 +2999,38 @@ mg_configure_topic_scroller (GtkWidget *scroller, GtkWidget *topic)
 	gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scroller), max_height);
 }
 
+void
+mg_apply_session_font_prefs (session_gui *gui)
+{
+	const PangoFontDescription *font = NULL;
+	GtkWidget *topic_scroller;
+
+	if (!gui)
+		return;
+
+	if (input_style)
+		font = input_style->font_desc;
+
+	if (gui->topic_entry)
+	{
+		theme_manager_apply_entry_palette (gui->topic_entry, font);
+		topic_scroller = gtk_widget_get_parent (gui->topic_entry);
+		if (topic_scroller && GTK_IS_SCROLLED_WINDOW (topic_scroller))
+			mg_configure_topic_scroller (topic_scroller, gui->topic_entry);
+	}
+
+	if (gui->input_box && prefs.hex_gui_input_style)
+		theme_manager_apply_entry_palette (gui->input_box, font);
+
+	if (gui->chanview)
+		chanview_apply_theme (gui->chanview);
+
+	if (gui->user_tree)
+		theme_manager_apply_userlist_style (gui->user_tree,
+			theme_manager_get_userlist_palette_behavior (font));
+}
+
+
 static void
 mg_create_topicbar (session *sess, GtkWidget *box)
 {
@@ -3021,6 +3053,7 @@ mg_create_topicbar (session *sess, GtkWidget *box)
         gtk_text_view_set_right_margin (GTK_TEXT_VIEW (topic), 4);
         topic_scroller = gtk_scrolled_window_new (NULL, NULL);
         gtk_container_add (GTK_CONTAINER (topic_scroller), topic);
+        theme_manager_apply_entry_palette (topic, input_style ? input_style->font_desc : NULL);
         mg_configure_topic_scroller (topic_scroller, topic);
         gtk_box_pack_start (GTK_BOX (hbox), topic_scroller, TRUE, TRUE, 0);
         gtk_widget_add_events (topic, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |

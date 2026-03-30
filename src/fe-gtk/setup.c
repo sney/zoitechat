@@ -2066,7 +2066,7 @@ setup_apply_to_sess (session_gui *gui)
 {
         mg_update_xtext (gui->xtext);
 
-        theme_preferences_apply_to_session (gui, input_style);
+        mg_apply_session_font_prefs (gui);
 
         if (prefs.hex_gui_ulist_buttons)
                 gtk_widget_show (gui->button_box);
