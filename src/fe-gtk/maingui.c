@@ -2969,9 +2969,40 @@ mg_create_dialogbuttons (GtkWidget *box)
 }
 
 static void
+mg_configure_topic_scroller (GtkWidget *scroller, GtkWidget *topic)
+{
+	PangoContext *context;
+	PangoFontMetrics *metrics;
+	int line_height;
+	int min_height;
+	int max_height;
+
+	context = gtk_widget_get_pango_context (topic);
+	metrics = pango_context_get_metrics (context,
+		pango_context_get_font_description (context),
+		pango_context_get_language (context));
+	line_height = PANGO_PIXELS (pango_font_metrics_get_ascent (metrics) +
+		pango_font_metrics_get_descent (metrics));
+	pango_font_metrics_unref (metrics);
+
+	if (line_height <= 0)
+		line_height = 16;
+
+	min_height = line_height + 8;
+	max_height = line_height * 4 + 8;
+
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroller),
+		GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+	gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scroller), GTK_SHADOW_NONE);
+	gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scroller), TRUE);
+	gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scroller), min_height);
+	gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scroller), max_height);
+}
+
+static void
 mg_create_topicbar (session *sess, GtkWidget *box)
 {
-	GtkWidget *vbox, *hbox, *mode_hbox, *topic, *bbox;
+	GtkWidget *vbox, *hbox, *mode_hbox, *topic, *bbox, *topic_scroller;
 	session_gui *gui = sess->gui;
 
 	gui->topic_bar = vbox = mg_box_new (GTK_ORIENTATION_VERTICAL, FALSE, 0);
@@ -2984,12 +3015,14 @@ mg_create_topicbar (session *sess, GtkWidget *box)
                 sess->res->tab = NULL;
 
         gui->topic_entry = topic = gtk_text_view_new ();
-        gtk_widget_set_name (topic, "zoitechat-inputbox");
-        gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (topic), GTK_WRAP_WORD_CHAR);
+        gtk_widget_set_name (topic, "zoitechat-topicbox");
+        gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (topic), GTK_WRAP_WORD);
         gtk_text_view_set_left_margin (GTK_TEXT_VIEW (topic), 4);
         gtk_text_view_set_right_margin (GTK_TEXT_VIEW (topic), 4);
-        gtk_box_pack_start (GTK_BOX (hbox), topic, TRUE, TRUE, 0);
-        mg_apply_emoji_fallback_widget (topic);
+        topic_scroller = gtk_scrolled_window_new (NULL, NULL);
+        gtk_container_add (GTK_CONTAINER (topic_scroller), topic);
+        mg_configure_topic_scroller (topic_scroller, topic);
+        gtk_box_pack_start (GTK_BOX (hbox), topic_scroller, TRUE, TRUE, 0);
         gtk_widget_add_events (topic, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
                                       GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
         g_signal_connect (G_OBJECT (topic), "key-press-event",
