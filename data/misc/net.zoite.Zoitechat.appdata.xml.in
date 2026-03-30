@@ -29,7 +29,47 @@
     <id>zoitechat.desktop</id>
   </provides>
 <releases>
-  <release date="2026-03-22" version="2.18.0~pre5">
+<release date="2026-03-30" version="2.18.0~pre6">
+  <description>
+    <p>GTK theme and UI:</p>
+    <ul>
+      <li>Applied app theme CSS to the menubar consistently across the app.</li>
+      <li>Restored horizontal separator lines in menus.</li>
+      <li>Fixed duplicate dialog buttons persisting in the UI.</li>
+      <li>Fixed GTK auto-replace cursor snapback.</li>
+      <li>Restored hiding of formatting control bytes so only formatted output is shown.</li>
+      <li>Fixed xtext link hit-testing coordinates.</li>
+      <li>Fixed short-palette fallback clobbering tab colors.</li>
+      <li>Added a None option for resetting the GTK3 theme back to system/default behavior.</li>
+      <li>Wrapped the topic bar in a scroller with bounded height.</li>
+      <li>Fixed fallback GTK menu highlight states.</li>
+      <li>Applied configured font preferences to the topic bar, channel tree, user list, and input box.</li>
+      <li>Removed unused UI icons.</li>
+      <li>Added close buttons to tabs.</li>
+    </ul>
+    <p>Preferences and search:</p>
+    <ul>
+      <li>Lazy-loads Preferences pages on first open for faster dialog startup.</li>
+      <li>Added channel-only mode to Ctrl+F search.</li>
+    </ul>
+    <p>Security and certificates:</p>
+    <ul>
+      <li>Added one-click client SSL certificate tools, including generation with P-256 certificates.</li>
+      <li>Added client SSL certificate import support in the network editor.</li>
+    </ul>
+    <p>Windows and packaging:</p>
+    <ul>
+      <li>Improved Windows installer VC++ redistributable handling by failing loudly when missing and using the official Microsoft download endpoint.</li>
+      <li>Fixed Windows locale path resolution in both GTK and text frontends.</li>
+    </ul>
+    <p>Other changes:</p>
+    <ul>
+      <li>Added 99-color support.</li>
+      <li>Disabled disk info in sysinfo.</li>
+    </ul>
+  </description>
+</release>
+<release date="2026-03-22" version="2.18.0~pre5">
     <description>
       <p>Preferences and config saving:</p>
       <ul>

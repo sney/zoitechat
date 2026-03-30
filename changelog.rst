@@ -1,6 +1,30 @@
 ZoiteChat ChangeLog
 =================
 
+2.18.0~pre6 (2026-03-30)
+
+- Applied app theme CSS to the menubar consistently across the app.
+- Restored horizontal separator lines in menus.
+- Improved Windows installer VC++ redistributable handling by failing loudly when missing and using the official Microsoft download endpoint.
+- Fixed Windows locale path resolution in both GTK and text frontends.
+- Fixed duplicate dialog buttons persisting in the UI.
+- Fixed GTK auto-replace cursor snapback.
+- Restored hiding of formatting control bytes so only formatted output is shown.
+- Added one-click client SSL certificate tools, including generation with P-256 certificates.
+- Added client SSL certificate import support in the network editor.
+- Added 99-color support.
+- Fixed xtext link hit-testing coordinates.
+- Fixed short-palette fallback clobbering tab colors.
+- Lazy-loads Preferences pages on first open for faster dialog startup.
+- Removed unused UI icons.
+- Added a None option for resetting the GTK3 theme back to system/default behavior.
+- Added channel-only mode to Ctrl+F search.
+- Disabled disk info in sysinfo.
+- Wrapped the topic bar in a scroller with bounded height.
+- Added close buttons to tabs.
+- Fixed fallback GTK menu highlight states.
+- Applied configured font preferences to the topic bar, channel tree, user list, and input box.
+
 2.18.0~pre5 (2026-03-22)
 ------------------------
 - Overhauled preferences/config saving: fully staged and transactional, debounced
