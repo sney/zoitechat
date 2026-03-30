@@ -37,6 +37,7 @@ GtkWidget *mg_create_generic_tab (char *name, char *title, int force_toplevel, i
 void mg_set_title (GtkWidget *button, char *title);
 void mg_set_access_icon (session_gui *gui, GdkPixbuf *pix, gboolean away);
 void mg_apply_setup (void);
+void mg_apply_session_font_prefs (session_gui *gui);
 void mg_close_sess (session *);
 void mg_tab_close (session *sess);
 void mg_detach (session *sess, int mode);
