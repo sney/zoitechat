@@ -8,7 +8,7 @@
 
 [![Version][github-version-img]][github-version-uri] [![Downloads][github-downloads-img]][github-downloads-uri] [![Size][github-size-img]][github-size-img] [![Last Commit][github-commit-img]][github-commit-img] [![Contributors][contribs-all-img]](#contributors-)
 
-[![View Official Documentation](https://img.shields.io/badge/View_Official_Documentation-526CFE?style=for-the-badge&logo=MaterialForMkDocs&logoColor=white)](https://docs.zoitechat.zoite.net)
+[![View Official Documentation](https://img.shields.io/badge/View_Official_Documentation-526CFE?style=for-the-badge&logo=MaterialForMkDocs&logoColor=white)](https://docs.zoitechat.org)
 
   </div>
 
