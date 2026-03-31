@@ -16,12 +16,12 @@
     <p>ZoiteChat is an easy to use yet extensible IRC Client based on Hexchat. It allows you to securely join multiple networks and talk to users privately or in channels using a customizable interface. You can even transfer files.</p>
     <p>ZoiteChat supports features such as: DCC, SASL, proxies, spellcheck, alerts, logging, custom themes, and Python/Perl scripts.</p>
   </description>
-  <url type="homepage">https://zoitechat.zoite.net</url>
+  <url type="homepage">https://zoitechat.org</url>
   <url type="bugtracker">https://github.com/zoitechat/zoitechat</url>
-  <url type="help">https://docs.zoitechat.zoite.net/en/latest/</url>
+  <url type="help">https://docs.zoitechat.org/en/latest/</url>
   <screenshots>
     <screenshot type="default">
-      <image>https://zoitechat.zoite.net/assets/ZoiteChat.png</image>
+      <image>https://zoitechat.org/assets/ZoiteChat.png</image>
       <caption>Main Chat Window</caption>
     </screenshot>
   </screenshots>
@@ -97,14 +97,6 @@
         <li>Windows installer: fixed VC++ redist URL, added non-plugin download fallback, switched to registry-based runtime detection.</li>
         <li>Made <code>libayatana-appindicator</code> a required dep in PKGBUILD.</li>
         <li>Cleaned up Meson libperl detection.</li>
-      </ul>
-    </description>
-  </release>
-  <release date="2026-03-22" version="2.18.0~pre5">
-    <description>
-      <p>Version metadata update:</p>
-      <ul>
-        <li>Bumped release version references to <code>2.18.0~pre5</code> across build and packaging files.</li>
       </ul>
     </description>
   </release>

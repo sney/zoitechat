@@ -24,7 +24,7 @@
 
 #include "zoitechat-plugin.h"
 
-#define APPCAST_URL "https://zoitechat.zoite.net/appcast.xml"
+#define APPCAST_URL "https://zoitechat.org/appcast.xml"
 
 static zoitechat_plugin *ph;
 static char name[] = "Update Checker";

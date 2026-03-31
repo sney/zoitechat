@@ -1717,7 +1717,7 @@ menu_ctcpguiopen (void)
 static void
 menu_docs (GtkWidget *wid, gpointer none)
 {
-	fe_open_url ("https://docs.zoitechat.zoite.net/en/latest/");
+	fe_open_url ("https://docs.zoitechat.org/en/latest/");
 }
 
 /*static void
@@ -1862,7 +1862,7 @@ about_dialog_response (GtkDialog *dialog, int response, gpointer data)
 {
 	if (response == GTK_RESPONSE_HELP)
 	{
-		fe_open_url ("http://zoitechat.zoite.net");
+		fe_open_url ("http://zoitechat.org");
 		return;
 	}
 	if (response == GTK_RESPONSE_APPLY)
