@@ -550,9 +550,9 @@ fe_userlist_insert (session *sess, struct User *newuser, gboolean sel)
 			prefix_escaped = g_markup_escape_text (prefix_text, -1);
 			prefix_color = userlist_prefix_color (newuser->prefix[0]);
 			if (prefix_color)
-				prefix = g_strdup_printf ("<b><span foreground=\"%s\">%s</span></b>", prefix_color, prefix_escaped);
+				prefix = g_strdup_printf ("<span foreground=\"%s\">%s</span>", prefix_color, prefix_escaped);
 			else
-				prefix = g_strdup_printf ("<b>%s</b>", prefix_escaped);
+				prefix = g_strdup (prefix_escaped);
 			g_free (prefix_escaped);
 		}
 		pix = NULL;
