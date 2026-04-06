@@ -13,10 +13,10 @@ if get_option('gtk-frontend')
       install_dir: metainfodir
     )
 
-    appstream_util = find_program('appstream-util', required: false)
-    if appstream_util.found()
-      test('Validate net.zoite.Zoitechat.appdata.xml', appstream_util,
-        args: ['validate-relax', zoitechat_appdata]
+    appstreamcli = find_program('appstreamcli', required: false)
+    if appstreamcli.found()
+      test('Validate net.zoite.Zoitechat.appdata.xml', appstreamcli,
+        args: ['validate', zoitechat_appdata]
       )
     endif
   endif
@@ -97,11 +97,18 @@ if get_option('plugin')
     conf.set('SUMMARY', metainfo[1])
     conf.set('LICENSE', metainfo[2])
 
-    configure_file(
+    plugin_appdata = configure_file(
       input: 'net.zoite.Zoitechat.Plugin.metainfo.xml.in',
       output: 'net.zoite.Zoitechat.Plugin.@0@.metainfo.xml'.format(name),
       configuration: conf,
       install_dir: get_option('install-plugin-metainfo') ? metainfodir : '',
     )
+
+    if appstreamcli.found()
+      test('Validate net.zoite.Zoitechat.Plugin.@0@.metainfo.xml'.format(name), appstreamcli,
+        args: ['validate', plugin_appdata]
+    )
+    endif
+
   endforeach
 endif
