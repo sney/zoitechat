@@ -1038,40 +1038,60 @@ static void
 theme_preferences_import_colors_conf_cb (GtkWidget *button, gpointer user_data)
 {
         gboolean *color_change_flag = user_data;
-        GtkWidget *dialog;
+        GtkFileChooserNative *dialog;
         char *path;
+        char *lower_path;
         char *cfg;
         GError *error = NULL;
         gboolean any_imported = FALSE;
         ThemeSemanticToken token;
+        GtkFileFilter *filter;
 
-        dialog = gtk_file_chooser_dialog_new (_("Import colors.conf colors"),
+        dialog = gtk_file_chooser_native_new (_("Import colors.conf colors"),
                                               GTK_WINDOW (gtk_widget_get_toplevel (button)),
                                               GTK_FILE_CHOOSER_ACTION_OPEN,
-                                              _("_Cancel"), GTK_RESPONSE_CANCEL,
-                                              _("_Import"), GTK_RESPONSE_ACCEPT,
-                                              NULL);
-        gtk_file_chooser_set_local_only (GTK_FILE_CHOOSER (dialog), TRUE);
+                                              _("_Import"),
+                                              _("_Cancel"));
         gtk_file_chooser_set_select_multiple (GTK_FILE_CHOOSER (dialog), FALSE);
+        filter = gtk_file_filter_new ();
+        gtk_file_filter_set_name (filter, _("Theme colors (*.conf, *.hct)"));
+        gtk_file_filter_add_pattern (filter, "*.conf");
+        gtk_file_filter_add_pattern (filter, "*.hct");
+        gtk_file_filter_add_pattern (filter, "*.HCT");
+        gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dialog), filter);
 
-        if (gtk_dialog_run (GTK_DIALOG (dialog)) != GTK_RESPONSE_ACCEPT)
+        if (gtk_native_dialog_run (GTK_NATIVE_DIALOG (dialog)) != GTK_RESPONSE_ACCEPT)
         {
-                gtk_widget_destroy (dialog);
+                g_object_unref (dialog);
                 return;
         }
 
         path = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-        gtk_widget_destroy (dialog);
+        g_object_unref (dialog);
         if (!path)
                 return;
 
-        if (!g_file_get_contents (path, &cfg, NULL, &error))
+        lower_path = g_ascii_strdown (path, -1);
+        if (g_str_has_suffix (lower_path, ".hct"))
+        {
+                if (!zoitechat_gtk3_theme_service_read_archive_text_file (path, "colors.conf", &cfg, &error))
+                {
+                        theme_preferences_show_import_error (button, _("Failed to read colors.conf from .hct file."));
+                        g_clear_error (&error);
+                        g_free (lower_path);
+                        g_free (path);
+                        return;
+                }
+        }
+        else if (!g_file_get_contents (path, &cfg, NULL, &error))
         {
                 theme_preferences_show_import_error (button, _("Failed to read colors.conf file."));
                 g_clear_error (&error);
+                g_free (lower_path);
                 g_free (path);
                 return;
         }
+        g_free (lower_path);
 
         for (token = THEME_TOKEN_MIRC_0; token < THEME_TOKEN_COUNT; token++)
         {

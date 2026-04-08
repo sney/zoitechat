@@ -189,6 +189,16 @@ zoitechat_gtk3_theme_service_import (const char *source_path, char **imported_id
 }
 
 gboolean
+zoitechat_gtk3_theme_service_read_archive_text_file (const char *archive_path, const char *name, char **contents, GError **error)
+{
+        (void)archive_path;
+        (void)name;
+        (void)contents;
+        (void)error;
+        return FALSE;
+}
+
+gboolean
 zoitechat_gtk3_theme_service_remove_user_theme (const char *theme_id, GError **error)
 {
         (void)error;
