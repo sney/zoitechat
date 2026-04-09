@@ -3152,8 +3152,8 @@ mg_create_topicbar (session *sess, GtkWidget *box)
         gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (topic), GTK_WRAP_WORD_CHAR);
         gtk_text_view_set_left_margin (GTK_TEXT_VIEW (topic), 4);
         gtk_text_view_set_right_margin (GTK_TEXT_VIEW (topic), 4);
-        gtk_text_view_set_top_margin (GTK_TEXT_VIEW (topic), 0);
-        gtk_text_view_set_bottom_margin (GTK_TEXT_VIEW (topic), 0);
+        gtk_text_view_set_top_margin (GTK_TEXT_VIEW (topic), 4);
+        gtk_text_view_set_bottom_margin (GTK_TEXT_VIEW (topic), 4);
         gtk_text_view_set_pixels_above_lines (GTK_TEXT_VIEW (topic), 0);
         gtk_text_view_set_pixels_below_lines (GTK_TEXT_VIEW (topic), 0);
         gtk_text_view_set_pixels_inside_wrap (GTK_TEXT_VIEW (topic), 0);
