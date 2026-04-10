@@ -33,6 +33,10 @@ static const char *theme_css_selector_dark_class = "zoitechat-dark";
 static const char *theme_css_selector_light_class = "zoitechat-light";
 static const char *theme_css_palette_provider_key = "zoitechat-palette-provider";
 static const guint theme_css_provider_priority = GTK_STYLE_PROVIDER_PRIORITY_USER;
+static const char *theme_css_palette_scope_selectors =
+	".zoitechat-palette, .zoitechat-palette *, .zoitechat-palette box, .zoitechat-palette grid, .zoitechat-palette stack, .zoitechat-palette frame, .zoitechat-palette paned, .zoitechat-palette paned > separator, .zoitechat-palette viewport, .zoitechat-palette overlay, .zoitechat-palette revealer, .zoitechat-palette notebook, .zoitechat-palette notebook > header, .zoitechat-palette notebook > header > tabs, .zoitechat-palette notebook > header > tabs > tab, .zoitechat-palette scrolledwindow, .zoitechat-palette treeview, .zoitechat-palette treeview.view, .zoitechat-palette treeview.view text, .zoitechat-palette treeview.view cell, .zoitechat-palette treeview.view row, .zoitechat-palette list, .zoitechat-palette list row, .zoitechat-palette row, .zoitechat-palette textview, .zoitechat-palette textview text, .zoitechat-palette text, .zoitechat-palette entry, .zoitechat-palette entry text, .zoitechat-palette button, .zoitechat-palette button label, .zoitechat-palette check, .zoitechat-palette radio, .zoitechat-palette scale, .zoitechat-palette spinbutton, .zoitechat-palette combobox, .zoitechat-palette menubar, .zoitechat-palette menu, .zoitechat-palette menuitem, .zoitechat-palette toolbar, .zoitechat-palette headerbar, .zoitechat-palette label, .zoitechat-palette link, .zoitechat-palette infobar";
+static const char *theme_css_palette_selection_selectors =
+	".zoitechat-palette *:selected, .zoitechat-palette *:selected:focus, .zoitechat-palette *:selected:hover, .zoitechat-palette treeview.view:selected, .zoitechat-palette treeview.view:selected:focus, .zoitechat-palette treeview.view:selected:hover, .zoitechat-palette row:selected, .zoitechat-palette row:selected:focus, .zoitechat-palette row:selected:hover, .zoitechat-palette selection, .zoitechat-palette text selection, .zoitechat-palette entry selection, .zoitechat-palette entry text selection, .zoitechat-palette button:selected, .zoitechat-palette button:checked, .zoitechat-palette check:checked, .zoitechat-palette radio:checked, .zoitechat-palette menuitem:selected, .zoitechat-palette menuitem:hover, .zoitechat-palette notebook > header > tabs > tab:checked, .zoitechat-palette notebook > header > tabs > tab:hover, .zoitechat-palette:focus selection, .zoitechat-palette:focus text selection";
 
 typedef struct
 {
@@ -323,13 +327,16 @@ theme_css_apply_palette_widget (GtkWidget *widget, const GdkRGBA *bg, const GdkR
 	}
 	gtkutil_append_font_css (css, font_desc);
 	g_string_append (css, " }");
-	g_string_append_printf (css, ".%s, .%s *, .%s treeview, .%s treeview.view, .%s treeview.view text, .%s treeview.view cell, .%s treeview.view row, .%s list, .%s list row, .%s text {", theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class);
+	g_string_append_printf (css, "%s {", theme_css_palette_scope_selectors);
 	if (bg)
 		g_string_append_printf (css, " background-color: %s;", bg_color);
 	if (fg)
+	{
 		g_string_append_printf (css, " color: %s;", fg_color);
+		g_string_append_printf (css, " caret-color: %s;", fg_color);
+	}
 	g_string_append (css, " }");
-	g_string_append_printf (css, ".%s *:selected, .%s *:selected:focus, .%s *:selected:hover, .%s treeview.view:selected, .%s treeview.view:selected:focus, .%s treeview.view:selected:hover, .%s row:selected, .%s row:selected:focus, .%s row:selected:hover, .%s selection, .%s text selection, .%s entry selection, .%s entry text selection, .%s:focus selection, .%s:focus text selection {", theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class, theme_css_selector_palette_class);
+	g_string_append_printf (css, "%s {", theme_css_palette_selection_selectors);
 	if (sel_bg_color)
 		g_string_append_printf (css, " background-color: %s;", sel_bg_color);
 	else if (bg)
