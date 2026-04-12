@@ -786,6 +786,7 @@ load_default_config(void)
 	prefs.hex_gui_transparency = 255;
 	prefs.hex_gui_tray = 1;
 	prefs.hex_gui_tray_blink = 1;
+	prefs.hex_gui_ulist_color = 1;
 	prefs.hex_gui_ulist_count = 1;
 	prefs.hex_gui_ulist_icons = 1;
 	prefs.hex_gui_ulist_style = 1;
