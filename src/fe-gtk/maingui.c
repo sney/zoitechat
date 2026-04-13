@@ -468,6 +468,14 @@ static session_gui static_mg_gui;
 static session_gui *mg_gui = NULL;      /* the shared irc tab */
 static int ignore_chanmode = FALSE;
 static const char chan_flags[] = { 'c', 'n', 't', 'i', 'm', 'l', 'k' };
+typedef struct
+{
+	int server_id;
+	char channel[CHANLEN];
+	char key[64];
+}
+mg_closed_channel_tab;
+static GSList *mg_closed_channel_tabs;
 
 static chan *active_tab = NULL; /* active tab */
 GtkWidget *parent_window = NULL;                        /* the master window */
@@ -1643,6 +1651,71 @@ mg_tab_close_cb (GtkWidget *dialog, gint arg1, session *sess)
         }
 }
 
+static void
+mg_closed_channel_tabs_add (session *sess)
+{
+	mg_closed_channel_tab *item;
+	GSList *last;
+
+	if (!sess || sess->type != SESS_CHANNEL || !sess->channel[0])
+		return;
+
+	item = g_new0 (mg_closed_channel_tab, 1);
+	item->server_id = sess->server->id;
+	g_strlcpy (item->channel, sess->channel, sizeof (item->channel));
+	g_strlcpy (item->key, sess->channelkey, sizeof (item->key));
+	mg_closed_channel_tabs = g_slist_prepend (mg_closed_channel_tabs, item);
+	if (g_slist_length (mg_closed_channel_tabs) > 20)
+	{
+		last = g_slist_last (mg_closed_channel_tabs);
+		g_free (last->data);
+		mg_closed_channel_tabs = g_slist_delete_link (mg_closed_channel_tabs, last);
+	}
+}
+
+void
+mg_reopen_closed_channel_tab (void)
+{
+	mg_closed_channel_tab *item;
+	GSList *head;
+	GSList *list;
+	server *serv;
+	session *sess;
+
+	if (!mg_closed_channel_tabs)
+		return;
+
+	head = mg_closed_channel_tabs;
+	item = head->data;
+	mg_closed_channel_tabs = g_slist_delete_link (mg_closed_channel_tabs, head);
+	if (!item)
+		return;
+
+	serv = NULL;
+	for (list = serv_list; list; list = list->next)
+	{
+		server *candidate = list->data;
+		if (candidate->id == item->server_id)
+		{
+			serv = candidate;
+			break;
+		}
+	}
+	if (serv && serv->connected && item->channel[0])
+	{
+		sess = find_channel (serv, item->channel);
+		if (sess)
+			fe_ctrl_gui (sess, 2, 0);
+		else
+		{
+			new_ircwindow (serv, item->channel, SESS_CHANNEL, 1);
+			serv->p_join (serv, item->channel, item->key);
+		}
+	}
+
+	g_free (item);
+}
+
 void
 mg_tab_close (session *sess)
 {
@@ -1650,11 +1723,12 @@ mg_tab_close (session *sess)
         GSList *list;
         int i;
 
-        if (chan_remove (sess->res->tab, FALSE))
-        {
-                sess->res->tab = NULL;
-                mg_ircdestroy (sess);
-        }
+	if (chan_remove (sess->res->tab, FALSE))
+	{
+		mg_closed_channel_tabs_add (sess);
+		sess->res->tab = NULL;
+		mg_ircdestroy (sess);
+	}
         else
         {
                 for (i = 0, list = sess_list; list; list = list->next)
