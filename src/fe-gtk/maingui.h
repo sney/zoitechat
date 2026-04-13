@@ -40,6 +40,7 @@ void mg_apply_setup (void);
 void mg_apply_session_font_prefs (session_gui *gui);
 void mg_close_sess (session *);
 void mg_tab_close (session *sess);
+void mg_reopen_closed_channel_tab (void);
 void mg_detach (session *sess, int mode);
 void mg_progressbar_create (session_gui *gui);
 void mg_progressbar_destroy (session_gui *gui);

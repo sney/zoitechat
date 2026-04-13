@@ -443,6 +443,27 @@ key_handle_key_press (GtkWidget *wid, GdkEventKey *evt, session *sess)
 	if (!list)
 		return FALSE;
 	current_sess = sess;
+	if ((evt->state & GDK_CONTROL_MASK) &&
+		!(evt->state & (GDK_MOD1_MASK | GDK_META_MASK)))
+	{
+		if (!(evt->state & GDK_SHIFT_MASK) &&
+			(evt->keyval == GDK_KEY_w || evt->keyval == GDK_KEY_W))
+		{
+			if (sess->type == SESS_CHANNEL)
+			{
+				fe_close_window (sess);
+				g_signal_stop_emission_by_name (G_OBJECT (wid), "key-press-event");
+				return 1;
+			}
+		}
+		if ((evt->state & GDK_SHIFT_MASK) &&
+			(evt->keyval == GDK_KEY_t || evt->keyval == GDK_KEY_T))
+		{
+			mg_reopen_closed_channel_tab ();
+			g_signal_stop_emission_by_name (G_OBJECT (wid), "key-press-event");
+			return 1;
+		}
+	}
 
 	if (plugin_emit_keypress (sess, evt->state, evt->keyval, gdk_keyval_to_unicode (evt->keyval)))
 		return 1;
