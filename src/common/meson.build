@@ -96,6 +96,14 @@ marshal = [
 
 make_te = find_program('make-te.py')
 
+
+python3 = find_program('python3', required: true)
+
+public_suffix_data = custom_target('public_suffix_data_h',
+  output: 'public_suffix_data.h',
+  command: [python3, files('gen-public-suffix.py'), '@OUTPUT@']
+)
+
 textevents = custom_target('textevents',
   input: 'textevents.in',
   output: ['textevents.h', 'textenums.h'],
@@ -119,7 +127,7 @@ if get_option('plugin')
 endif
 
 zoitechat_common = static_library('zoitechatcommon',
-  sources: [textevents] + marshal + common_sources,
+  sources: [textevents, public_suffix_data] + marshal + common_sources,
   include_directories: config_h_include,
   dependencies: common_deps + common_sysinfo_deps,
   c_args: common_cflags,
@@ -127,7 +135,7 @@ zoitechat_common = static_library('zoitechatcommon',
 )
 
 zoitechat_common_dep = declare_dependency(
-  sources: [textevents] + marshal,
+  sources: [textevents, public_suffix_data] + marshal,
   link_with: zoitechat_common,
   include_directories: common_includes,
   compile_args: common_cflags,
