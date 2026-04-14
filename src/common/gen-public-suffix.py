@@ -3,7 +3,10 @@ import sys
 import urllib.request
 from pathlib import Path
 
-URL = "https://raw.githubusercontent.com/publicsuffix/list/main/public_suffix_list.dat"
+URLS = (
+    "https://raw.githubusercontent.com/publicsuffix/list/main/public_suffix_list.dat",
+    "https://publicsuffix.org/list/public_suffix_list.dat",
+)
 
 
 def parse_rules(text: str):
@@ -32,19 +35,36 @@ def emit_header(path: str, rules):
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: gen-public-suffix.py <output>")
+    if len(sys.argv) not in (2, 3):
+        raise SystemExit("usage: gen-public-suffix.py <output> [source]")
     output = Path(sys.argv[1])
-    fallback = Path(__file__).with_name("public_suffix_data.h")
-    try:
-        with urllib.request.urlopen(URL, timeout=30) as resp:
-            data = resp.read().decode("utf-8")
-        rules = parse_rules(data)
-        emit_header(str(output), rules)
-    except Exception:
-        if not fallback.exists():
-            raise
-        output.write_bytes(fallback.read_bytes())
+    sources = []
+    if len(sys.argv) == 3:
+        sources.append(Path(sys.argv[2]))
+    sources.extend(
+        [
+            Path(__file__).with_name("public_suffix_list.dat"),
+            Path("/usr/share/publicsuffix/public_suffix_list.dat"),
+            Path("/app/share/publicsuffix/public_suffix_list.dat"),
+        ]
+    )
+    data = None
+    for url in URLS:
+        try:
+            with urllib.request.urlopen(url, timeout=30) as resp:
+                data = resp.read().decode("utf-8")
+            break
+        except Exception:
+            pass
+    if data is None:
+        for source in sources:
+            if source.exists():
+                data = source.read_text(encoding="utf-8")
+                break
+    if data is None:
+        raise SystemExit("unable to load public suffix list")
+    rules = parse_rules(data)
+    emit_header(str(output), rules)
 
 
 if __name__ == "__main__":
