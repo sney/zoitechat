@@ -65,6 +65,9 @@
     <ClInclude Include="proto-irc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="public_suffix_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="server.h">
       <Filter>Header Files</Filter>
     </ClInclude>

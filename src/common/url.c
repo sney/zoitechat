@@ -20,12 +20,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <glib.h>
 #include "zoitechat.h"
 #include "zoitechatc.h"
 #include "cfgfiles.h"
 #include "fe.h"
 #include "tree.h"
 #include "url.h"
+#include "public_suffix_data.h"
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
@@ -35,6 +37,7 @@ GTree *url_btree = NULL;
 static gboolean regex_match (const GRegex *re, const char *word,
 							 int *start, int *end);
 static const GRegex *re_url (void);
+static const GRegex *re_url_no_scheme (void);
 static const GRegex *re_email (void);
 static const GRegex *re_nick (void);
 static const GRegex *re_channel (void);
@@ -42,6 +45,8 @@ static gboolean match_nick (const char *word, int *start, int *end);
 static gboolean match_channel (const char *word, int *start, int *end);
 static gboolean match_url (const char *word, int *start, int *end);
 static gboolean match_email (const char *word, int *start, int *end);
+static gboolean host_has_public_suffix (const char *host);
+static gboolean host_has_public_suffix_range (const char *word, int start, int end);
 
 static int
 url_free (char *url, void *data)
@@ -266,7 +271,16 @@ match_channel (const char *word, int *start, int *end)
 static gboolean
 match_url (const char *word, int *start, int *end)
 {
-	return regex_match (re_url (), word, start, end);
+	if (regex_match (re_url (), word, start, end))
+		return TRUE;
+
+	if (!regex_match (re_url_no_scheme (), word, start, end))
+		return FALSE;
+
+	if (*start > 0 && word[*start - 1] == '@')
+		return FALSE;
+
+	return host_has_public_suffix_range (word, *start, *end);
 }
 
 static gboolean
@@ -393,6 +407,114 @@ regex_match (const GRegex *re, const char *word, int *start, int *end)
 	return found;
 }
 
+static gboolean
+host_has_public_suffix_range (const char *word, int start, int end)
+{
+	char *candidate;
+	const char *host_start;
+	const char *host_end;
+	const char *host_colon;
+	gboolean ok;
+	int host_len;
+	char *host;
+
+	candidate = g_strndup (word + start, end - start);
+	host_start = candidate;
+	host_end = candidate + strlen (candidate);
+	if (*host_start == '[')
+	{
+		g_free (candidate);
+		return FALSE;
+	}
+	host_colon = strchr (host_start, ':');
+	if (host_colon)
+		host_end = host_colon;
+	host_colon = strchr (host_start, '/');
+	if (host_colon && host_colon < host_end)
+		host_end = host_colon;
+	host_len = (int)(host_end - host_start);
+	if (host_len <= 0)
+	{
+		g_free (candidate);
+		return FALSE;
+	}
+	host = g_strndup (host_start, host_len);
+	ok = host_has_public_suffix (host);
+	g_free (host);
+	g_free (candidate);
+	return ok;
+}
+
+static GHashTable *
+public_suffix_table (void)
+{
+	static GHashTable *table = NULL;
+	unsigned int i;
+
+	if (table)
+		return table;
+
+	table = g_hash_table_new (g_str_hash, g_str_equal);
+	for (i = 0; i < public_suffix_rules_len; i++)
+	{
+		g_hash_table_add (table, (gpointer)public_suffix_rules[i]);
+	}
+	return table;
+}
+
+static gboolean
+host_has_public_suffix (const char *host)
+{
+	GHashTable *table;
+	gchar **labels;
+	int i;
+	int n;
+	gboolean matched = FALSE;
+
+	if (!strchr (host, '.'))
+		return FALSE;
+
+	labels = g_strsplit (host, ".", -1);
+	for (n = 0; labels[n]; n++)
+	{
+		if (labels[n][0] == '\0')
+		{
+			g_strfreev (labels);
+			return FALSE;
+		}
+	}
+
+	table = public_suffix_table ();
+	for (i = 0; i < n; i++)
+	{
+		char *tail = g_strjoinv (".", &labels[i]);
+		if (g_hash_table_contains (table, tail))
+			matched = TRUE;
+		if (i + 1 < n)
+		{
+			char *tail_wild = g_strjoinv (".", &labels[i + 1]);
+			char *wild = g_strconcat ("*.", tail_wild, NULL);
+			if (g_hash_table_contains (table, wild))
+				matched = TRUE;
+			g_free (tail_wild);
+			g_free (wild);
+		}
+		if (i > 0)
+		{
+			char *exc = g_strconcat ("!", tail, NULL);
+			if (g_hash_table_contains (table, exc))
+				matched = TRUE;
+			g_free (exc);
+		}
+		g_free (tail);
+		if (matched)
+			break;
+	}
+
+	g_strfreev (labels);
+	return matched;
+}
+
 /*	Miscellaneous description --- */
 #define DOMAIN_LABEL "[\\pL\\pN](?:[-\\pL\\pN]{0,61}[\\pL\\pN])?"
 #define DOMAIN DOMAIN_LABEL "(\\." DOMAIN_LABEL ")*"
@@ -471,6 +593,28 @@ re_url (void)
 
 	grist = g_string_free (grist_gstr, FALSE);
 
+	url_ret = make_re (grist);
+	g_free (grist);
+
+	return url_ret;
+}
+
+static const GRegex *
+re_url_no_scheme (void)
+{
+	static GRegex *url_ret = NULL;
+	GString *grist_gstr;
+	char *grist;
+
+	if (url_ret) return url_ret;
+
+	grist_gstr = g_string_new (NULL);
+	g_string_append (grist_gstr, "(");
+	g_string_append (grist_gstr, HOST_URL_OPT_TLD OPT_PORT);
+	g_string_append_printf (grist_gstr, "(/" PATH ")?");
+	g_string_append (grist_gstr, ")");
+
+	grist = g_string_free (grist_gstr, FALSE);
 	url_ret = make_re (grist);
 	g_free (grist);
 
