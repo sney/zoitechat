@@ -7,14 +7,13 @@
   "command": "zoitechat",
   "finish-args": [
     "--share=ipc",
-    "--socket=x11",
+    "--socket=wayland",
+    "--socket=fallback-x11",
     "--share=network",
     "--socket=pulseaudio",
     "--filesystem=xdg-download",
     "--filesystem=xdg-data/themes:ro",
     "--filesystem=xdg-data/icons:ro",
-    "--filesystem=~/.themes:ro",
-    "--filesystem=~/.icons:ro",
     "--filesystem=xdg-run/tray-icon:create",
     "--env=GTK_CSD=1",
     "--talk-name=org.freedesktop.Notifications",
@@ -45,9 +44,9 @@
       "buildsystem": "meson",
       "sources": [
         {
-          "type": "git",
-          "url": "https://github.com/pavouk/lgi.git",
-          "commit": "c9b8e4473c6421f2a215d8c06c0d94b86eb0b26a"
+          "type": "archive",
+          "url": "https://github.com/pavouk/lgi/archive/c9b8e4473c6421f2a215d8c06c0d94b86eb0b26a.tar.gz",
+          "sha256": "db67b2b7ee89fa566f783486d56be7203552a997bc55f35020b57dd2776b9943"
         }
       ]
     },
