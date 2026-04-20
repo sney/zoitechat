@@ -29,6 +29,36 @@
     <id>zoitechat.desktop</id>
   </provides>
 <releases>
+<release date="2026-04-20" version="2.18.0">
+  <description>
+    <p>Tabs and navigation:</p>
+    <ul>
+      <li>Added optional close buttons on tabs.</li>
+      <li>Added Ctrl+W to close tabs and Ctrl+Shift+T to reopen recently closed tabs.</li>
+      <li>Improved channel tree behavior by ignoring collapsed parent selections.</li>
+    </ul>
+    <p>Themes and appearance:</p>
+    <ul>
+      <li>Expanded theme import support with .hct support in colors.conf import.</li>
+      <li>Added pevent import support from .hct theme files and improved import result messaging.</li>
+      <li>Expanded palette and selection CSS styling for better theme consistency.</li>
+      <li>Auto-sizes the topic bar to wrapped text for better multi-line topic handling.</li>
+    </ul>
+    <p>Links and text handling:</p>
+    <ul>
+      <li>Refined command-character parsing when pasting path-like text.</li>
+      <li>Tightened topic link detection and opening rules.</li>
+      <li>Added Public Suffix List validation for host links to reduce bad link matches.</li>
+    </ul>
+    <p>Packaging and platform integration:</p>
+    <ul>
+      <li>Sanitized the Linux open environment for AppImage builds and added safer fallback handling.</li>
+      <li>Labeled Windows installer runtimes with exact versions.</li>
+      <li>Fixed the notification icon and corrected the Flatpak screenshot asset.</li>
+      <li>Improved AppStream metainfo validation.</li>
+    </ul>
+  </description>
+</release>
 <release date="2026-03-30" version="2.18.0~pre6">
   <description>
     <p>GTK theme and UI:</p>

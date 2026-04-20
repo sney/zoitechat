@@ -1,6 +1,23 @@
 ZoiteChat ChangeLog
 =================
 
+2.18.0 (2026-04-20)
+
+- Added optional close buttons on tabs.
+- Added Ctrl+W to close tabs and Ctrl+Shift+T to reopen recently closed tabs.
+- Expanded theme import support with .hct support in colors.conf import.
+- Added pevent import support from .hct theme files and improved import result messaging.
+- Expanded palette and selection CSS styling for better theme consistency.
+- Auto-sizes the topic bar to wrapped text for better multi-line topic handling.
+- Refined command-character parsing when pasting path-like text.
+- Tightened topic link detection and opening rules.
+- Added Public Suffix List validation for host links to reduce bad link matches.
+- Improved channel tree behavior by ignoring collapsed parent selections.
+- Sanitized the Linux open environment for AppImage builds and added safer fallback handling.
+- Labeled Windows installer runtimes with exact versions.
+- Fixed the notification icon and corrected the Flatpak screenshot asset.
+- Improved AppStream metainfo validation.
+
 2.18.0~pre6 (2026-03-30)
 
 - Applied app theme CSS to the menubar consistently across the app.
