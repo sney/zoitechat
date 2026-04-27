@@ -32,7 +32,6 @@ jobs:
             glib2-devel \
             gtk3 \
             openssl \
-            dbus-glib \
             libcanberra \
             libayatana-appindicator \
             luajit \

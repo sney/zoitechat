@@ -8,7 +8,6 @@ arch=('x86_64')
 url='https://github.com/zoitechat/zoitechat'
 license=('GPL-2.0-or-later')
 depends=(
-  'dbus-glib'
   'glib2'
   'gtk3'
   'iso-codes'
