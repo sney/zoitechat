@@ -82,10 +82,6 @@ has_theme_argument (void)
 
 void
 zoitechat_remote (void)
-/* TODO: dbus_g_connection_unref (connection) are commented because it makes
- * dbus to crash. Fixed in dbus >=0.70 ?!?
- * https://launchpad.net/distros/ubuntu/+source/dbus/+bug/54375
- */
 {
 	GDBusConnection *connection;
 	GDBusProxy *dbus = NULL;
